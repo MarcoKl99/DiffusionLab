@@ -6,7 +6,7 @@ def sample_xt(x0: torch.Tensor, noise_schedule: LinearNoiseSchedule) -> tuple[to
     batch_size = x0.shape[0]
     device = x0.device
 
-    # Get a random timestep
+    # Get a random time step
     t = torch.randint(
         low=0,
         high=noise_schedule.time_steps,

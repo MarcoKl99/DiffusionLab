@@ -1,4 +1,4 @@
-import numpy as np
+import torch
 
 
 class ForwardDiffusion:
@@ -6,14 +6,17 @@ class ForwardDiffusion:
         self.time_steps = time_steps
         self.beta = beta
 
-    def diffuse(self, x0: np.ndarray) -> np.ndarray:
-        x = x0.copy()
-        trajectory = [x]
+    def diffuse(self, x0: torch.Tensor) -> torch.Tensor:
+        x = x0.clone()
+        trajectory = [x.clone()]
 
-        for t in range(self.time_steps):
+        sqrt_one_minus_beta = torch.sqrt(torch.tensor(1 - self.beta, device=x.device, dtype=x.dtype))
+        sqrt_beta = torch.sqrt(torch.tensor(self.beta, device=x.device, dtype=x.dtype))
+
+        for t in range(self.time_steps - 1):
             # Create Gaussian noise
-            epsilon = np.random.randn(*x.shape)
-            x = np.sqrt(1 - self.beta) * x + np.sqrt(self.beta) * epsilon
-            trajectory.append(x)
+            epsilon = torch.randn_like(x)
+            x = sqrt_one_minus_beta * x + sqrt_beta * epsilon
+            trajectory.append(torch.Tensor(x))
 
-        return np.array(trajectory)
+        return torch.stack(trajectory)
