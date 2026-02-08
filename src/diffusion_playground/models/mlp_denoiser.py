@@ -15,8 +15,10 @@ class MLPDenoiser(nn.Module):
         )
 
     def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        # Add the timestep to the input date
+        if t.dim() == 1:
+            t = t.unsqueeze(1)
+
+        t = t.float()
         x_0 = torch.cat([x, t], dim=1)
 
-        # Pass the data including timestep through the network
         return self.net(x_0)
