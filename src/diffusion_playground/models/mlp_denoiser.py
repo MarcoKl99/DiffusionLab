@@ -3,6 +3,11 @@ import torch.nn as nn
 
 
 class MLPDenoiser(nn.Module):
+    """
+    Simple Multi Layer Perceptron de-noising model.
+    Used for Proof of Concept and testing of the training and inference pipeline.
+    """
+
     def __init__(self, input_dim: int = 2, hidden_dim: int = 128):
         super().__init__()
 

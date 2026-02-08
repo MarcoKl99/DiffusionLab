@@ -8,13 +8,26 @@ from ..diffusion.noise_schedule import LinearNoiseSchedule
 
 
 def train_denoiser(
-    model: nn.Module,
-    data: torch.Tensor,
-    noise_schedule: LinearNoiseSchedule,
-    epochs: int = 1_000,
-    lr: float = 1e-3,
-    batch_size: int = 128,
-):
+        model: nn.Module,
+        data: torch.Tensor,
+        noise_schedule: LinearNoiseSchedule,
+        epochs: int = 1_000,
+        lr: float = 1e-3,
+        batch_size: int = 128,
+) -> None:
+    """
+    Train a model on the given data.
+    The noised samples are generated within the training loop to learn to sample from the learned
+    probability distribution after training.
+
+    :param model: Model to train
+    :param data: Tensor of not-noised data (raw) to train the model on - noised samples are created in the process
+    :param noise_schedule: Schedule to create noised samples with
+    :param epochs: Number of epochs to train
+    :param lr: Learning rate
+    :param batch_size: Batch size
+    """
+
     # Create the optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
