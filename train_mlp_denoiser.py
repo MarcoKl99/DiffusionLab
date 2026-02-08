@@ -17,4 +17,7 @@ model = MLPDenoiser()
 schedule = LinearNoiseSchedule(time_steps=100)
 
 # Training
-train_denoiser(model, data, schedule, epochs=1_000)
+train_denoiser(model, data, schedule, epochs=100_000)
+
+# Save the model to re-use it later
+torch.save(model.state_dict(), "data/models/mlp_denoiser.pth")

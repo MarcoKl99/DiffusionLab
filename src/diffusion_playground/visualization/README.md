@@ -11,3 +11,10 @@ noising process of data to get an exploratory feel about what we attempt to reve
 
 The scope of the function is solely to visualize a already given trajectory, so an array
 of noised 2D-datapoints.
+
+### Evaluation Example - 2D Dataset (e.g. Moons 🌗)
+
+Besides plotting the noising trajectory, the results of noise prediction (and therefore
+de-noising) for 2-dimensional toy-datasets like `moons` can also be visualized by invoking
+`show_eval_results_2d` and passing the original- as well as noised-data and the
+predicted noise.

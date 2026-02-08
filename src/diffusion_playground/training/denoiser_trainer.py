@@ -43,5 +43,7 @@ def train_denoiser(
         loss.backward()
         optimizer.step()
 
-        if epoch % 100 == 0:
+        # Print the loss after every 10th of the training
+        step_width_output = epochs // 10
+        if epoch % step_width_output == 0:
             print(f"Epoch {epoch}: loss = {loss.item():.4f}")
