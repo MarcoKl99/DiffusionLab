@@ -28,7 +28,7 @@ def plot_trajectory(trajectory: np.ndarray, step: int = 5, title: str = "Forward
 
 
 def show_denoising_steps_2d(
-        x0: torch.Tensor, xt: torch.Tensor, predicted_noise: torch.Tensor, title: str, save_path: str
+        x0: torch.Tensor, xt: torch.Tensor, predicted_noise: torch.Tensor, title: str
 ) -> None:
     # Calculate the scale of the plot to make all subplots the same size
     x_min, x_max = x0[:, 0].min().item(), x0[:, 0].max().item()
@@ -60,5 +60,3 @@ def show_denoising_steps_2d(
     plt.ylim(y_min, y_max)
 
     plt.suptitle(title, y=0.98, fontsize=12)
-
-    plt.savefig(save_path)
