@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 from pathlib import Path
+import re
 
 from ..diffusion.training_utils import sample_xt
 from ..diffusion.noise_schedule import LinearNoiseSchedule
@@ -17,6 +18,7 @@ def train_denoiser(
         batch_size: int = 128,
         checkpoint_dir: str | None = None,
         save_every: int = 1_000,
+        resume: bool = True,
 ) -> None:
     """
     Train a model on the given data.
@@ -31,6 +33,7 @@ def train_denoiser(
     :param batch_size: Batch size
     :param checkpoint_dir: Directory to save checkpoints (None = no saving)
     :param save_every: Save checkpoint every N epochs
+    :param resume: If True, automatically resume from the latest checkpoint if available
     """
 
     # Create the optimizer
@@ -49,15 +52,43 @@ def train_denoiser(
     data = data.cpu()
 
     # Setup checkpoint directory
+    start_epoch = 0
     if checkpoint_dir is not None:
         checkpoint_path = Path(checkpoint_dir)
         checkpoint_path.mkdir(parents=True, exist_ok=True)
         print(f"Checkpoints will be saved to: {checkpoint_path}")
 
+        # Check for existing checkpoints to resume from
+        if resume:
+            checkpoint_files = list(checkpoint_path.glob("checkpoint_epoch_*.pt"))
+            if checkpoint_files:
+                # Find the latest checkpoint by epoch number
+                def get_epoch_num(path):
+                    match = re.search(r'checkpoint_epoch_(\d+)\.pt', path.name)
+                    return int(match.group(1)) if match else 0
+
+                latest_checkpoint = max(checkpoint_files, key=get_epoch_num)
+                latest_epoch = get_epoch_num(latest_checkpoint)
+
+                print(f"\n{'='*60}")
+                print(f"🔄 Resuming from checkpoint: {latest_checkpoint.name}")
+                print(f"{'='*60}")
+
+                # Load checkpoint
+                checkpoint = torch.load(latest_checkpoint, map_location=device)
+                model.load_state_dict(checkpoint['model_state_dict'])
+                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                start_epoch = checkpoint['epoch']
+
+                print(f"✓ Resumed from epoch {start_epoch}")
+                print(f"✓ Previous loss: {checkpoint['loss']:.6f}\n")
+            else:
+                print("No existing checkpoints found. Starting from scratch.\n")
+
     best_loss = float('inf')
 
-    # Training Loop
-    for epoch in tqdm(range(epochs)):
+    # Training Loop - start from start_epoch
+    for epoch in tqdm(range(start_epoch, epochs)):
         # Get a random batch (batch_size random indexes)
         # Create indices on CPU to match the data tensor device
         idx = torch.randint(0, data.shape[0], (batch_size,), device='cpu')
