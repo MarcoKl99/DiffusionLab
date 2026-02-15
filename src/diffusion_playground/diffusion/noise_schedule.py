@@ -12,3 +12,15 @@ class LinearNoiseSchedule:
         self.betas = torch.linspace(beta_start, beta_end, time_steps)
         self.alphas = 1 - self.betas
         self.alpha_bars = torch.cumprod(self.alphas, dim=0)
+
+    def to(self, device: torch.device | str):
+        """
+        Move all schedule tensors to the specified device.
+
+        :param device: Device to move tensors to (e.g., 'cuda', 'cpu')
+        :return: Self for chaining
+        """
+        self.betas = self.betas.to(device)
+        self.alphas = self.alphas.to(device)
+        self.alpha_bars = self.alpha_bars.to(device)
+        return self
