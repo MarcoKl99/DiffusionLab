@@ -109,6 +109,7 @@ def train_denoiser(
 
     # Setup checkpoint directory
     start_epoch = 0
+    best_loss = float('inf')
     if checkpoint_dir is not None:
         checkpoint_path = Path(checkpoint_dir)
         checkpoint_path.mkdir(parents=True, exist_ok=True)
@@ -165,13 +166,12 @@ def train_denoiser(
                 model.load_state_dict(checkpoint['model_state_dict'])
                 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
                 start_epoch = checkpoint['epoch']
+                best_loss = checkpoint['loss']  # Resume with the best loss from checkpoint
 
                 print(f"✓ Resumed from epoch {start_epoch}")
                 print(f"✓ Previous loss: {checkpoint['loss']:.6f}\n")
             else:
                 print("No existing checkpoints found. Starting from scratch.\n")
-
-    best_loss = float('inf')
 
     # Training Loop - start from start_epoch
     for epoch in tqdm(range(start_epoch, epochs)):
