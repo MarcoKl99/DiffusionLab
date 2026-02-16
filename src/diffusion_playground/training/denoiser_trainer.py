@@ -119,11 +119,11 @@ def train_denoiser(
 
         # Check for existing checkpoints to resume from
         if resume:
-            checkpoint_files = list(checkpoint_path.glob("checkpoint_epoch_*.pt"))
+            checkpoint_files = []
 
-            # If no local checkpoints but S3 is configured, check S3
-            if not checkpoint_files and s3_bucket:
-                print("No local checkpoints found. Checking S3...")
+            # If S3 is configured, prioritize S3 (ignore local checkpoints)
+            if s3_bucket:
+                print("Checking S3 for checkpoints...")
                 s3_checkpoints = _list_s3_checkpoints(s3_bucket, s3_prefix)
 
                 if s3_checkpoints:
@@ -143,6 +143,9 @@ def train_denoiser(
                     if _download_from_s3(s3_bucket, latest_s3_checkpoint['key'], local_checkpoint_path):
                         checkpoint_files = [local_checkpoint_path]
                         print(f"✓ Downloaded checkpoint successfully")
+            else:
+                # Only check local checkpoints if S3 is not configured
+                checkpoint_files = list(checkpoint_path.glob("checkpoint_epoch_*.pt"))
 
             if checkpoint_files:
                 # Find the latest checkpoint by epoch number
