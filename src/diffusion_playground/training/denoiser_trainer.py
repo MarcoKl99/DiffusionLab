@@ -70,7 +70,6 @@ def train_denoiser(
                     return int(match.group(1)) if match else 0
 
                 latest_checkpoint = max(checkpoint_files, key=get_epoch_num)
-                latest_epoch = get_epoch_num(latest_checkpoint)
 
                 print(f"\n{'=' * 60}")
                 print(f"🔄 Resuming from checkpoint: {latest_checkpoint.name}")

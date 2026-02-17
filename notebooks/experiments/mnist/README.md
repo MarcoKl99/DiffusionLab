@@ -10,38 +10,22 @@ diffusion models can generate realistic images.
 
 ### U-Net-style CNN Denoiser
 
-We use a **U-Net architecture** with the following components:
+We follow the idea of the **U-Net architecture** with the following details:
 
-```
-Input (1, 28, 28)
-    ↓
-InitConv → (32, 28, 28)
-    ↓
-DownBlock1 + Pool → (64, 14, 14) ──────┐
-    ↓                                  │ skip connection
-DownBlock2 + Pool → (128, 7, 7) ────┐  │
-    ↓                               │  │
-Bottleneck → (128, 7, 7)            │  │
-    ↓                               │  │
-Upsample + UpBlock1 → (64, 14, 14) ←┘  │
-    ↓                                  │
-Upsample + UpBlock2 → (32, 28, 28) ←───┘
-    ↓
-OutConv → (1, 28, 28)
-```
+<img src="../../../docs/mnist-cnn/CNNDenoiserMNIST.png" width="50%">
 
 **Key Features:**
 
-- **Convolutional layers** preserve spatial structure of images
+- **Convolutional layers** for classic feature extraction in image processing
 - **Skip connections** help preserve fine details from encoder to decoder
 - **Sinusoidal time embeddings** condition the network on the current diffusion time step
-- **BatchNorm + ReLU** for stable training
+- **BatchNorm + ReLU** for more stable training
 
 **Model Size:**
 
 - Base channels: 32
 - Time embedding dimension: 128
-- Total parameters: ~350K
+- Total parameters: 858,305
 
 ### Time Conditioning
 
@@ -168,34 +152,6 @@ grayscale MNIST image dataset lies solely in the model architecture (MLP -> U-Ne
 
 4. **`sample_xt()`** (`src/diffusion_playground/diffusion/training_utils.py`)
     - Adds noise during training
-
-### Running the Experiment
-
-1. **Training**:
-   ```python
-   model = CNNDenoiser(in_channels=1, base_channels=32, time_emb_dim=128)
-   train_denoiser(
-       model=model,
-       data=mnist_data,
-       noise_schedule=schedule,
-       epochs=100_000,
-       checkpoint_dir="checkpoints/mnist_cnn",
-       save_every=1_000
-   )
-   ```
-
-2. **Generation**:
-   ```python
-   # Load checkpoint
-   model = CNNDenoiser(...)
-   load_checkpoint(model, "checkpoints/mnist_cnn/best_model.pt")
-
-   # Generate from noise
-   xt = torch.randn(16, 1, 28, 28)
-   # ... run reverse diffusion with stochastic sampling ...
-   ```
-
-See the full implementation in [`mnist_diffusion.ipynb`](./mnist_diffusion.ipynb).
 
 ## Conclusion
 
