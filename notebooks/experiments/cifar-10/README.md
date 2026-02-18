@@ -18,22 +18,27 @@ This experiment demonstrates that our generic diffusion pipeline can scale to mo
 For this experiment, we replicate the same architecture as in the MNIST example, with a higher
 base-dimensionality, aiming to depict the more complex domain.
 
-<img src="../../../docs/cifar-10-cnn/CNNDenoiserCIFAR10.png" width="50%">
+The model graph (**small version!**) can be
+seen [here](../../../docs/cifar-10-cnn/cnn-denoiser/CNNDenoiserCIFAR10.png).
 
 **Key Features:**
 
 - **3-channel input/output** for RGB color images
 - **Convolutional layers** preserve spatial structure and learn complex features
+- **MaxPooling layers** for down-sampling
+- **Upsample layers** for... well up-sampling 😉
 - **Skip connections** help preserve fine details from encoder to decoder
 - **Sinusoidal time embeddings** condition the network on the current diffusion time step
 - **BatchNorm + ReLU** for stable training
 
-**Model Size:**
+### Model Versions
 
-- Base channels: 64
-- Time embedding dimension: 128
-- Input channels: 3 (RGB)
-- Total parameters: 3,321,475
+The model is implemented in two different versions.
+
+| Name             | Parameters | Base Channels | Num. Down-/Up-sampling | Model Graph                                                                       |
+|------------------|------------|---------------|------------------------|-----------------------------------------------------------------------------------|
+| CNNDenoiser      | 3,321,475  | 64            | 2                      | [here](../../../docs/cifar-10-cnn/cnn-denoiser/CNNDenoiserCIFAR10.png)            |
+| CNNDenoiserLarge | 53,441,795 | 128           | 3                      | [here](../../../docs/cifar-10-cnn/cnn-denoiser-large/CNNDenoiserLargeCIFAR10.png) |
 
 ### Time Conditioning
 
@@ -76,15 +81,13 @@ At each training step:
 4. Train the model to predict the added noise across all 3 color channels
 5. Update weights via backpropagation
 
-The model learns to denoise at all time steps simultaneously through random sampling.
-
 ## Generation Process
 
 To generate new images:
 
 1. **Start**: Sample pure Gaussian noise $ x_T \sim N(0, I) $ with shape (3, 32, 32)
 2. **Iterate**: For t = T down to 1:
-    - Predict noise using the trained model: $ \hat{\epsilon} = model(x_t, t) $
+    - Predict noise using the trained model: $ \hat{\epsilon}_t = model(x_t, t) $
     - Compute the mean of $ p(x_{t-1} | x_t) $
     - **Add stochastic noise** (except at t=1) for diversity
     - Update: $ x_{t-1} = mean + \sigma_t \cdot noise $
@@ -92,62 +95,40 @@ To generate new images:
 
 ## Results
 
-### Training Progression
+### Comparison of models
 
-The model was trained for 100,000 epochs with checkpoints saved at regular intervals. Below are generated samples
-showing how quality improves with training:
+Both models were trained for 100,000 epochs with checkpoints saved each 1,000 epochs. Below are generated samples
+showing how quality improves with training and comparing both model variants (3M - small and 53M - large):
 
-#### Epoch 1,000 (Early Training)
+#### After 1,000 Epochs
 
-![Generated samples at epoch 1000](../../../docs/cifar-10-cnn/generated_samples_epoch_1000.png)
+**CNNDenoiser - 3M**
 
-At 1,000 epochs, the model is just beginning to learn. The generated images show mostly dark structures, no realistic
-shapes can be seen at that stage, but some abstract forms start to emerge.
+<img src="../../../docs/cifar-10-cnn/cnn-denoiser/generated_samples_epoch_1000.png">
 
-#### Epoch 25,000 (Early-Mid Training)
+**CNNDenoiserLarge - 53M**
 
-![Generated samples at epoch 25000](../../../docs/cifar-10-cnn/generated_samples_epoch_25000.png)
+<img src="../../../docs/cifar-10-cnn/cnn-denoiser-large/generated_samples_epoch_1000.png">
 
-By 25,000 epochs, significant progress is visible! The model begins to learn **basic shapes and structures**:
+#### After 50,000 Epochs
 
-- Vague object boundaries emerge
-- Color regions become more coherent
-- Spatial structure starts to form (sky vs ground, background vs foreground)
+**CNNDenoiser - 3M**
 
-#### Epoch 50,000 (Mid Training)
+<img src="../../../docs/cifar-10-cnn/cnn-denoiser/generated_samples_epoch_50000.png">
 
-![Generated samples at epoch 50000](../../../docs/cifar-10-cnn/generated_samples_epoch_50000.png)
+**CNNDenoiserLarge - 53M**
 
-At 50,000 epochs, the model shows improved shape learning compared to the checkpoints
-before.
+<img src="../../../docs/cifar-10-cnn/cnn-denoiser-large/generated_samples_epoch_50000.png">
 
-- Slowly we can guess a few categories in the generated images
-- Color palettes match expected classes (blue water for ships, brown/tan for animals)
+#### After 100,000 Epochs
 
-#### Epoch 75,000 (Advanced Training)
+**CNNDenoiser - 3M**
 
-![Generated samples at epoch 75000](../../../docs/cifar-10-cnn/generated_samples_epoch_75000.png)
+<img src="../../../docs/cifar-10-cnn/cnn-denoiser/generated_samples_epoch_100000.png">
 
-At 75,000 epochs, refinement continues:
+**CNNDenoiserLarge - 53M**
 
-- Objects become more defined and coherent
-- Better separation between object and background
-- Textures start to emerge - e.g. some images start to include shadows
-
-#### Epoch 100,000 (Final Model)
-
-![Generated samples at epoch 100000](../../../docs/cifar-10-cnn/generated_samples_epoch_100000.png)
-
-After 100,000 epochs, the model produces even better results:
-
-- **Better object shapes** for certain classes, like e.g. boats
-- **Coherent colors** and spatial layouts
-- **Diverse generations** across samples
-- While far from photorealistic, the shapes and structures of CIFAR-10 objects are clearly learned
-
-**Key Observation**: The model successfully learns to generate recognizable object shapes and structures! You can
-slowly identify boats, animal legs (horses), vehicles, and other CIFAR-10 categories. This is remarkable progress for a
-relatively simple U-Net architecture.
+<img src="../../../docs/cifar-10-cnn/cnn-denoiser-large/generated_samples_epoch_100000.png">
 
 ## Challenges and Observations
 
@@ -158,7 +139,7 @@ Training diffusion models on complex datasets like CIFAR-10 is significantly har
 1. **Higher Dimensionality**: 32×32×3 = 3,072 dimensions vs 28×28×1 = 784 for MNIST (~4x more complex)
 2. **Complex Textures**: Real-world photographs have rich textures, lighting, and variations
 3. **Multiple Object Classes**: The model must learn 10 distinct object categories simultaneously
-4. **Limited Architecture**: Our U-Net is relatively small (~3M parameters) compared to state-of-the-art models
+4. **Limited Architecture**: Both U-Net models are still far too small compared to state-of-the-art models
 
 ### What's Working Well
 
@@ -166,33 +147,6 @@ Training diffusion models on complex datasets like CIFAR-10 is significantly har
 ✅ **Color Structure**: Appropriate colors for different object categories
 ✅ **Spatial Coherence**: Objects have proper structure (e.g., animals have legs)
 ✅ **Diversity**: Different samples show variety in generated objects
-
-### Future Improvements
-
-To achieve photorealistic generation, consider:
-
-- **Larger Architecture**: Increase model capacity (more channels, deeper network)
-- **More Training**: Extend to 500K-1M epochs
-- **Better Schedule**: Experiment with cosine noise schedules
-- **Conditional Generation**: Add class labels to guide generation (class-conditional DDPM)
-- **Advanced Techniques**: Implement classifier-free guidance, DDIM sampling, or latent diffusion
-
-## Generic Training Pipeline
-
-One of the key achievements of this project is the **generic training pipeline**. The same `train_denoiser()` function
-works seamlessly for:
-
-- 2D toy datasets (Moons) with MLP
-- Grayscale images (MNIST) with CNN
-- **Color images (CIFAR-10) with RGB CNN**
-
-The only changes needed:
-
-1. Model architecture (adjusted input/output channels)
-2. Dataset (CIFAR-10 instead of MNIST)
-3. Image shape (3, 32, 32) instead of (1, 28, 28)
-
-The abstraction successfully scales to more complex data! 🎉
 
 ## Technical Implementation
 
@@ -203,6 +157,11 @@ The abstraction successfully scales to more complex data! 🎉
     - Configurable input channels (1 for grayscale, 3 for RGB)
     - Sinusoidal time embeddings
     - Skip connections between encoder and decoder
+
+2. **`CNNDenoiserLarge`** (`src/diffusion_playground/models/cnn_denoiser_large.py`)
+    - Larger version of the CNNDenoiser
+    - 1 additional down- and up-sampling step
+    - Higher base dimension (64 -> 128)
 
 2. **`LinearNoiseSchedule`** (`src/diffusion_playground/diffusion/noise_schedule.py`)
     - Computes $ \beta_t $, $ \alpha_t $, and $ \hat{\alpha}_t $ for each time step
@@ -233,15 +192,21 @@ The abstraction successfully scales to more complex data! 🎉
 
    # Create noise schedule
    schedule = LinearNoiseSchedule(time_steps=1_000)
+   
+   # Load the data
+   data = ...
 
    # Train
    train_denoiser(
        model=model,
-       data=cifar10_data,
+       data=data,
        noise_schedule=schedule,
        epochs=100_000,
-       checkpoint_dir="checkpoints/cifar10_cnn",
-       save_every=1_000
+       lr=1e-3,
+       batch_size=128,
+       checkpoint_dir="checkpoints/model_name",
+       save_every=1_000,
+       resume=True,
    )
    ```
 
@@ -259,7 +224,7 @@ The abstraction successfully scales to more complex data! 🎉
        model=model,
        noise_schedule=schedule,
        image_shape=(3, 32, 32),
-       num_samples=16,
+       num_samples=9,
        device=device
    )
    ```
@@ -268,19 +233,20 @@ The abstraction successfully scales to more complex data! 🎉
    ```python
    from src.diffusion_playground.visualization.image_generation_results import generate_samples_from_checkpoints
 
+   # Generate the samples
    generate_samples_from_checkpoints(
        model=model,
-       device=device,
-       checkpoint_epochs=[1000, 25000, 50000, 75000, 100000],
-       checkpoint_dir="checkpoints/cifar10_cnn",
-       output_dir="docs/cifar-10-cnn",
+       model_name="53M",
+       device="cpu",
+       checkpoint_epochs=[1000],  # add [25000, 50000, 75000, 100000]
+       checkpoint_dir="./checkpoints/model_name",
+       output_dir="../../../docs/experiment-name/model-name",
        noise_schedule=schedule,
        image_shape=(3, 32, 32),
-       cmap=None  # RGB images
    )
    ```
 
-See the full implementation in [`cifar10_diffusion.ipynb`](./cifar10_diffusion.ipynb).
+See the full implementation of the large model version in [cnn_denoiser_large.ipynb](./cnn_denoiser_large.ipynb).
 
 ## Conclusion
 
@@ -292,20 +258,11 @@ This experiment successfully demonstrates that:
 - ✅ The generic training pipeline works across different datasets and modalities
 - ✅ Even a relatively simple model can capture meaningful structure in complex data
 
-### Next Steps:
-
-- Experiment with larger architectures
-- Try conditional generation (class-guided)
-- Implement advanced sampling techniques (DDIM, classifier-free guidance)
-- Scale to higher resolutions
-
 ---
 
 **Experiment Date**: February 2026
 
 **Training Hardware**: Google Colab T4 GPU
-
-**Total Training Time**: 100,000 epochs - No time measuring, interrupted across a few days
 
 **Framework**: PyTorch 2.x
 

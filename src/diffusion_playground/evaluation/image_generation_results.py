@@ -10,7 +10,7 @@ from ..training.denoiser_trainer import load_checkpoint
 
 def generate_samples_from_checkpoints(
         model: nn.Module,
-        dataset_name_trained_on: str,
+        model_name: str,
         device: torch.device | str,
         checkpoint_epochs: list[int],
         checkpoint_dir: str | Path,
@@ -26,7 +26,7 @@ def generate_samples_from_checkpoints(
     to generate samples from noise, and saves the results as image grids.
 
     :param model: Model instance to load checkpoints into (should match the architecture used during training)
-    :param dataset_name_trained_on: Name of the dataset the model was trained on - used for image title
+    :param model_name: Name of the model that is evaluated
     :param device: Device to run generation on ('cpu', 'cuda', or torch.device)
     :param checkpoint_epochs: List of epoch numbers to generate samples from
     :param checkpoint_dir: Directory containing the checkpoint files
@@ -107,7 +107,7 @@ def generate_samples_from_checkpoints(
             ax.axis("off")
 
         # Add informative title
-        title = f"Generated Images (trained on {dataset_name_trained_on}) - {cp_name}\n"
+        title = f"Model: {model_name} - {cp_name}\n"
         title += f"Epoch: {checkpoint_info['epoch']} | Loss: {checkpoint_info['loss']:.6f}"
         plt.suptitle(title, fontsize=10, fontweight='bold')
         plt.tight_layout()
