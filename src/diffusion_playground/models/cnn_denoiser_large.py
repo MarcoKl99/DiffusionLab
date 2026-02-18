@@ -39,7 +39,7 @@ class CNNDenoiserLarge(nn.Module):
         self.pool3 = nn.MaxPool2d(2)
 
         # Bottleneck
-        self.bottleneck = DownBlock(base_channels * 4, base_channels * 4, time_emb_dim)
+        self.bottleneck = DownBlock(base_channels * 8, base_channels * 8, time_emb_dim)
 
         # Decoder (upsampling path)
         self.up1 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)

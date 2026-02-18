@@ -2,14 +2,14 @@ import torch
 from torchvision import datasets, transforms
 
 
-def load_cifar_10() -> tuple[torch.Tensor, torch.Tensor]:
+def load_cifar_10(path_data: str = "data", download: bool = True) -> tuple[torch.Tensor, torch.Tensor]:
     # Load CIFAR-10 dataset directly as a tensor
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))  # Normalize RGB channels to [-1, 1]
     ])
 
-    cifar_dataset = datasets.CIFAR10(root="data", train=True, transform=transform, download=False)
+    cifar_dataset = datasets.CIFAR10(root=path_data, train=True, transform=transform, download=download)
 
     # Extract all images into a single tensor
     cifar_data = torch.stack([cifar_dataset[i][0] for i in range(len(cifar_dataset))])
