@@ -182,9 +182,9 @@ implementation:
 
 ![MNIST Generated Samples](docs/mnist-cnn/generated_samples_epoch_79000.png)
 
-The model produces clear, diverse handwritten digits with good structural quality. While some digits clearly show
-imperfections, the overall generation quality not bad for a relatively small U-Net architecture and no
-extensive training.
+The model produces diverse handwritten digits with, in most cases, good structural quality. While some digits clearly
+show imperfections, the overall generation quality not bad for a relatively small
+U-Net architecture and no extensive training.
 
 **Location**: `notebooks/experiments/mnist/`
 
@@ -199,7 +199,7 @@ extensive training.
 - **Training**: 100,000 epochs
 - **Results**: Learns object shapes and structures, starts to be recognizable after 100,000 epochs
 
-![CIFAR-10 Generated Samples](docs/cifar-10-cnn/generated_samples_epoch_100000.png)
+![CIFAR-10 Generated Samples](docs/cifar-10-cnn/cnn-denoiser/generated_samples_epoch_100000.png)
 
 The model successfully learns to generate recognizable shapes from CIFAR-10 categories! While not photorealistic, you
 can clearly identify boats, animal structures (horses with legs), and vehicle shapes. The model captures appropriate
@@ -247,7 +247,7 @@ jupyter notebook
 
 Each notebook includes:
 
-- Dataset loading and exploration
+- Dataset loading (and exploration in relevant cases)
 - Model architecture setup
 - Training with automatic checkpointing
 - Visualization of results
