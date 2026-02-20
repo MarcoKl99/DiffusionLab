@@ -99,6 +99,8 @@ CNNDenoiser as described above, just with a slightly larger architecture
 - Number of down-/up-sampling blocks each 3 (instead of 2)
 - Number of parameters 53,441,795 (instead of 3,321,475)
 
+<img src="../../../docs/models/cnn-denoiser-large/schema.svg">
+
 (detailed model graph [here](../../../docs/models/cnn-denoiser-large/CNNDenoiserLargeGraph.png))
 
 The rest of the model remained unchanged, simply exploring the effects of a larger
