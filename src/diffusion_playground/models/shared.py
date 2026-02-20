@@ -5,7 +5,7 @@ import math
 
 class SinusoidalTimeEmbedding(nn.Module):
     """
-    Sinusoidal time embedding as used in the original Transformer paper.
+    Sinusoidal time embedding.
     Embeds scalar time steps into a higher-dimensional vector space.
     """
 

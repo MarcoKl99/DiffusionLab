@@ -6,6 +6,7 @@ data
 checkpoints
 src.zip
 .DS_Store
+*.bkp
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -19,7 +19,7 @@ For this experiment, we replicate the same architecture as in the MNIST example,
 base-dimensionality, aiming to depict the more complex domain.
 
 The model graph (**small version!**) can be
-seen [here](../../../docs/cifar-10-cnn/cnn-denoiser/CNNDenoiserCIFAR10.png).
+seen [here](../../../docs/models/cnn-denoiser/CNNDenoiserGraph.png).
 
 **Key Features:**
 
@@ -33,18 +33,8 @@ seen [here](../../../docs/cifar-10-cnn/cnn-denoiser/CNNDenoiserCIFAR10.png).
 
 ### Model Versions
 
-The model is implemented in two different versions.
-
-| Name             | Parameters | Base Channels | Num. Down-/Up-sampling | Model Graph                                                                       |
-|------------------|------------|---------------|------------------------|-----------------------------------------------------------------------------------|
-| CNNDenoiser      | 3,321,475  | 64            | 2                      | [here](../../../docs/cifar-10-cnn/cnn-denoiser/CNNDenoiserCIFAR10.png)            |
-| CNNDenoiserLarge | 53,441,795 | 128           | 3                      | [here](../../../docs/cifar-10-cnn/cnn-denoiser-large/CNNDenoiserLargeCIFAR10.png) |
-
-### Time Conditioning
-
-The model uses **sinusoidal time embeddings** to encode the current time step into a high-dimensional vector. This time
-information is injected into each encoder and decoder block, allowing the network to adapt its denoising strategy based
-on the noise level.
+For more information on the different models CNNDenoiser (3M) and CNNDenoiserLarge (53M)
+see the respective [README](../../../src/diffusion_playground/models/README.md).
 
 ## Training Strategy
 
@@ -80,18 +70,6 @@ At each training step:
 3. Add noise according to the schedule at time t (forward diffusion)
 4. Train the model to predict the added noise across all 3 color channels
 5. Update weights via backpropagation
-
-## Generation Process
-
-To generate new images:
-
-1. **Start**: Sample pure Gaussian noise $ x_T \sim N(0, I) $ with shape (3, 32, 32)
-2. **Iterate**: For t = T down to 1:
-    - Predict noise using the trained model: $ \hat{\epsilon}_t = model(x_t, t) $
-    - Compute the mean of $ p(x_{t-1} | x_t) $
-    - **Add stochastic noise** (except at t=1) for diversity
-    - Update: $ x_{t-1} = mean + \sigma_t \cdot noise $
-3. **Output**: Final denoised RGB image $ x_0 $
 
 ## Results
 

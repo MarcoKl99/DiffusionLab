@@ -12,7 +12,7 @@ class CNNDenoiserLarge(nn.Module):
     def __init__(
             self,
             in_channels: int = 1,
-            base_channels: int = 64,
+            base_channels: int = 128,
             time_emb_dim: int = 128
     ):
         """
