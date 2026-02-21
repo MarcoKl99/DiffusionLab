@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class MLPDenoiser(nn.Module):
     """
-    Simple Multi Layer Perceptron de-noising model.
+    Simple Multi Layer Perceptron denoising model.
     Used for Proof of Concept and testing of the training and inference pipeline.
     """
 
@@ -16,7 +16,7 @@ class MLPDenoiser(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
-            nn.Linear(hidden_dim, input_dim)  # Input din as output dim to get a new image
+            nn.Linear(hidden_dim, input_dim)  # Input dim as output dim to get a new image
         )
 
     def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:

@@ -6,15 +6,13 @@ from .shared import SinusoidalTimeEmbedding, DownBlock, UpBlock
 
 class CNNDenoiser(nn.Module):
     """
-    UNet-style CNN denoiser for image data (e.g., MNIST).
+    CNN-based denoising model, inspired by the U-Net architecture.
+    The model implements an encoder/decoder approach, first passing the data through a series
+    of down-sampling blocks, subsequently a bottleneck block, followed symmetrically by a
+    sequence of up-sampling blocks.
 
-    Architecture:
-    - Encoder path with downsampling
-    - Bottleneck
-    - Decoder path with upsampling and skip connections
-    - Time conditioning via sinusoidal embeddings
-
-    Designed for 28x28 grayscale images but can work with other sizes.
+    The time-embedding is realized with a sinusoidal embedding, based on the idea implemented
+    in transformers (note that this might not be an exact replication, but is certainly inspired by it).
     """
 
     def __init__(
@@ -24,11 +22,11 @@ class CNNDenoiser(nn.Module):
             time_emb_dim: int = 128
     ):
         """
-        Args:
-            in_channels: Number of input channels (1 for grayscale, 3 for RGB)
-            base_channels: Base number of channels (will be multiplied in deeper layers)
-            time_emb_dim: Dimension of time embeddings
+        :param in_channels: Depth-dimension of the input (e.g. 1 for grayscale, 3 for RGB)
+        :param base_channels: First channel depth for the output of the initial convolution layer
+        :param time_emb_dim: Dimension of the time embedding (split evenly to sine and cosine)
         """
+
         super().__init__()
 
         self.time_embedding = SinusoidalTimeEmbedding(time_emb_dim)
@@ -36,21 +34,21 @@ class CNNDenoiser(nn.Module):
         # Initial conv
         self.init_conv = nn.Conv2d(in_channels, base_channels, kernel_size=3, padding=1)
 
-        # Encoder (downsampling path)
+        # Encoder (down-sampling path)
         self.down1 = DownBlock(base_channels, base_channels * 2, time_emb_dim)
-        self.pool1 = nn.MaxPool2d(2)  # 28x28 -> 14x14
+        self.pool1 = nn.MaxPool2d(2)
 
         self.down2 = DownBlock(base_channels * 2, base_channels * 4, time_emb_dim)
-        self.pool2 = nn.MaxPool2d(2)  # 14x14 -> 7x7
+        self.pool2 = nn.MaxPool2d(2)
 
         # Bottleneck
         self.bottleneck = DownBlock(base_channels * 4, base_channels * 4, time_emb_dim)
 
-        # Decoder (upsampling path)
-        self.up1 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # 7x7 -> 14x14
+        # Decoder (up-sampling path)
+        self.up1 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
         self.up_block1 = UpBlock(base_channels * 4, base_channels * 2, time_emb_dim)
 
-        self.up2 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)  # 14x14 -> 28x28
+        self.up2 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
         self.up_block2 = UpBlock(base_channels * 2, base_channels, time_emb_dim)
 
         # Output conv
@@ -58,16 +56,14 @@ class CNNDenoiser(nn.Module):
 
     def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         """
-        Forward pass of the CNN denoiser.
+        Forward pass of the denoiser.
 
-        Args:
-            x: Noisy images of shape (batch_size, channels, H, W)
-            t: Time steps of shape (batch_size,) or (batch_size, 1)
-
-        Returns:
-            Predicted noise with same shape as input x
+        :param x: Input feature map.
+        :param t: Timestep.
+        :return: Predicted noise as the given timestep t.
         """
-        # Ensure t is the right shape
+
+        # Ensure t is the right shape (might feel a little "ducktapy" but ensures compatibility from grayscale to RGB)
         if t.dim() == 2:
             t = t.squeeze(1)
 

@@ -7,6 +7,7 @@ class SinusoidalTimeEmbedding(nn.Module):
     """
     Sinusoidal time embedding.
     Embeds scalar time steps into a higher-dimensional vector space.
+    See README.md in this package for more details.
     """
 
     def __init__(self, embedding_dim: int = 128):
@@ -15,19 +16,21 @@ class SinusoidalTimeEmbedding(nn.Module):
 
     def forward(self, t: torch.Tensor) -> torch.Tensor:
         """
-        Args:
-            t: Time steps of shape (batch_size,) or (batch_size, 1)
+        Forward pass though the time embedding procedure.
 
-        Returns:
-            Time embeddings of shape (batch_size, embedding_dim)
+        :param t: Time step to embed.
+        :return: Embedded time step as tensor.
         """
+
         device = t.device
         half_dim = self.embedding_dim // 2
 
-        # Create sinusoidal embeddings
+        # Create sinusoidal embeddings - use half dim for splitting across sine and cosine
         embeddings = math.log(10000) / (half_dim - 1)
         embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
         embeddings = t.float().view(-1, 1) * embeddings.view(1, -1)
+
+        # Create the final embedding using sine and cosine
         embeddings = torch.cat([torch.sin(embeddings), torch.cos(embeddings)], dim=-1)
 
         return embeddings
@@ -35,7 +38,9 @@ class SinusoidalTimeEmbedding(nn.Module):
 
 class DownBlock(nn.Module):
     """
-    Downsampling block with two conv layers.
+    Down-sampling block with two conv layers.
+    Note that here we only implement the convolutional processing, pooling is being done afterwards by
+    the denoiser-network.
     """
 
     def __init__(self, in_channels: int, out_channels: int, time_emb_dim: int):
@@ -52,13 +57,15 @@ class DownBlock(nn.Module):
 
     def forward(self, x: torch.Tensor, t_emb: torch.Tensor) -> torch.Tensor:
         """
-        Args:
-            x: Input features (batch_size, in_channels, H, W)
-            t_emb: Time embeddings (batch_size, time_emb_dim)
+        Forward pass through the down-sampling convolutional block.
 
-        Returns:
-            Output features (batch_size, out_channels, H, W)
+        :param x: Input feature map.
+        :param t_emb: Embedded time step.
+        :return: Tensor of the convoluted feature maps, as input to subsequent pooling
+                 (could be included in the down-block architecture as well ;) )
         """
+
+        # First conv + batch-norm
         h = self.conv1(x)
         h = self.bn1(h)
         h = self.relu(h)
@@ -68,6 +75,7 @@ class DownBlock(nn.Module):
         t_emb_proj = t_emb_proj.view(-1, t_emb_proj.shape[1], 1, 1)
         h = h + t_emb_proj
 
+        # Second conv + batch-norm
         h = self.conv2(h)
         h = self.bn2(h)
         h = self.relu(h)
@@ -77,7 +85,7 @@ class DownBlock(nn.Module):
 
 class UpBlock(nn.Module):
     """
-    Upsampling block with two conv layers and skip connection.
+    Up-sampling block with conv layers and skip connection.
     """
 
     def __init__(self, in_channels: int, out_channels: int, time_emb_dim: int):
@@ -95,17 +103,18 @@ class UpBlock(nn.Module):
 
     def forward(self, x: torch.Tensor, skip: torch.Tensor, t_emb: torch.Tensor) -> torch.Tensor:
         """
-        Args:
-            x: Input features (batch_size, in_channels, H, W)
-            skip: Skip connection from encoder (batch_size, in_channels, H, W)
-            t_emb: Time embeddings (batch_size, time_emb_dim)
+        Forward pass through the up-sampling convolutional block including adding skip connection.
 
-        Returns:
-            Output features (batch_size, out_channels, H, W)
+        :param x: Input feature map.
+        :param skip: Input map from the corresponding down-sampling convolutional block (skip connection).
+        :param t_emb: Embedded time step.
+        :return: Tensor of convoluted feature maps + skip information added
         """
+
         # Concatenate with skip connection
         x = torch.cat([x, skip], dim=1)
 
+        # First conv + batch-norm
         h = self.conv1(x)
         h = self.bn1(h)
         h = self.relu(h)
@@ -115,6 +124,7 @@ class UpBlock(nn.Module):
         t_emb_proj = t_emb_proj.view(-1, t_emb_proj.shape[1], 1, 1)
         h = h + t_emb_proj
 
+        # Second conv + batch-norm
         h = self.conv2(h)
         h = self.bn2(h)
         h = self.relu(h)

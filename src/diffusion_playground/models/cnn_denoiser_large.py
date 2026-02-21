@@ -7,6 +7,7 @@ from .shared import SinusoidalTimeEmbedding, DownBlock, UpBlock
 class CNNDenoiserLarge(nn.Module):
     """
     CNNDenoiser implementation (U-Net style) with larger architecture.
+    See cnn_denoiser.py for details.
     """
 
     def __init__(
@@ -15,12 +16,6 @@ class CNNDenoiserLarge(nn.Module):
             base_channels: int = 128,
             time_emb_dim: int = 128
     ):
-        """
-        Args:
-            in_channels: Number of input channels (1 for grayscale, 3 for RGB)
-            base_channels: Base number of channels (will be multiplied in deeper layers)
-            time_emb_dim: Dimension of time embeddings
-        """
         super().__init__()
 
         self.time_embedding = SinusoidalTimeEmbedding(time_emb_dim)
@@ -28,7 +23,7 @@ class CNNDenoiserLarge(nn.Module):
         # Initial conv
         self.init_conv = nn.Conv2d(in_channels, base_channels, kernel_size=3, padding=1)
 
-        # Encoder (downsampling path)
+        # Encoder (down-sampling path)
         self.down1 = DownBlock(base_channels, base_channels * 2, time_emb_dim)
         self.pool1 = nn.MaxPool2d(2)
 
@@ -41,7 +36,7 @@ class CNNDenoiserLarge(nn.Module):
         # Bottleneck
         self.bottleneck = DownBlock(base_channels * 8, base_channels * 8, time_emb_dim)
 
-        # Decoder (upsampling path)
+        # Decoder (up-sampling path)
         self.up1 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
         self.up_block1 = UpBlock(base_channels * 8, base_channels * 4, time_emb_dim)
 
