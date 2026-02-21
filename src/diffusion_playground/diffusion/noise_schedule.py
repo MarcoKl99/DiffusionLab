@@ -20,6 +20,7 @@ class LinearNoiseSchedule:
         :param device: Device to move tensors to (e.g., 'cuda', 'cpu')
         :return: Self for chaining
         """
+
         self.betas = self.betas.to(device)
         self.alphas = self.alphas.to(device)
         self.alpha_bars = self.alpha_bars.to(device)

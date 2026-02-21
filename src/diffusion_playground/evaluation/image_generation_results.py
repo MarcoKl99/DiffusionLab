@@ -35,6 +35,7 @@ def generate_samples_from_checkpoints(
     :param image_shape: Shape of generated images as (channels, height, width)
     :param grid_size: Grid dimensions for visualization as (rows, cols)
     """
+
     # Convert paths to Path objects
     checkpoint_path = Path(checkpoint_dir)
     output_path = Path(output_dir)
@@ -67,8 +68,8 @@ def generate_samples_from_checkpoints(
 
         # Check if checkpoint exists
         if not checkpoint_file.exists():
-            print(f"⚠️  Checkpoint not found: {checkpoint_file}")
-            print(f"   Skipping...")
+            print(f"Warning: Checkpoint not found: {checkpoint_file}")
+            print(f"Skipping...")
             continue
 
         # Load checkpoint
@@ -83,7 +84,7 @@ def generate_samples_from_checkpoints(
             num_samples=num_samples,
             device=device,
         )
-        print(f"✓ Generation complete")
+        print(f"Generation complete!")
 
         # Create visualization grid
         rows, cols = grid_size
@@ -121,5 +122,5 @@ def generate_samples_from_checkpoints(
         plt.close()
 
     print(f"\n{'=' * 60}")
-    print(f"✓ All visualizations completed!")
+    print(f"All visualizations completed!")
     print(f"{'=' * 60}")
