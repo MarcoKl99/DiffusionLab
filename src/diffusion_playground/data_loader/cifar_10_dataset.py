@@ -3,6 +3,14 @@ from torchvision import datasets, transforms
 
 
 def load_cifar_10(path_data: str = "data", download: bool = True) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Wrapper to load transformed CIFAR-10 dataset for training.
+
+    :param path_data: Path to which the dataset should be saved, if not on disk already.
+    :param download: Boolean, if the dataset should be downloaded if not present yet.
+    :return: Tuple containing the data (images) and labels (classes).
+    """
+
     # Load CIFAR-10 dataset directly as a tensor
     transform = transforms.Compose([
         transforms.ToTensor(),
