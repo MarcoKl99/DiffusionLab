@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
 
-from .shared import SinusoidalTimeEmbedding, DownBlock, UpBlock
+from .shared import DownBlock, UpBlock
+from .base_backbone import BaseBackbone
 
 
-class CNNDenoiser(nn.Module):
+class CNNDenoiser(BaseBackbone):
     """
     CNN-based denoising model, inspired by the U-Net architecture.
     The model implements an encoder/decoder approach, first passing the data through a series
@@ -29,8 +30,6 @@ class CNNDenoiser(nn.Module):
 
         super().__init__()
 
-        self.time_embedding = SinusoidalTimeEmbedding(time_emb_dim)
-
         # Initial conv
         self.init_conv = nn.Conv2d(in_channels, base_channels, kernel_size=3, padding=1)
 
@@ -54,41 +53,34 @@ class CNNDenoiser(nn.Module):
         # Output conv
         self.out_conv = nn.Conv2d(base_channels, in_channels, kernel_size=1)
 
-    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, cond_emb: torch.Tensor) -> torch.Tensor:
         """
         Forward pass of the denoiser.
 
         :param x: Input feature map.
-        :param t: Timestep.
+        :param cond_emb: Conditional embedding - e.g. only time step or time step + class embedding
         :return: Predicted noise as the given timestep t.
         """
-
-        # Ensure t is the right shape (might feel a little "ducktapy" but ensures compatibility from grayscale to RGB)
-        if t.dim() == 2:
-            t = t.squeeze(1)
-
-        # Get time embeddings
-        t_emb = self.time_embedding(t)
 
         # Initial conv
         x0 = self.init_conv(x)
 
         # Encoder
-        x1 = self.down1(x0, t_emb)
+        x1 = self.down1(x0, cond_emb)
         x1_pooled = self.pool1(x1)
 
-        x2 = self.down2(x1_pooled, t_emb)
+        x2 = self.down2(x1_pooled, cond_emb)
         x2_pooled = self.pool2(x2)
 
         # Bottleneck
-        bottleneck = self.bottleneck(x2_pooled, t_emb)
+        bottleneck = self.bottleneck(x2_pooled, cond_emb)
 
         # Decoder with skip connections
         up1 = self.up1(bottleneck)
-        up1 = self.up_block1(up1, x2, t_emb)
+        up1 = self.up_block1(up1, x2, cond_emb)
 
         up2 = self.up2(up1)
-        up2 = self.up_block2(up2, x1, t_emb)
+        up2 = self.up_block2(up2, x1, cond_emb)
 
         # Output
         out = self.out_conv(up2)

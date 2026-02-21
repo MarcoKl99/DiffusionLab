@@ -1,8 +1,10 @@
 import torch
 import torch.nn as nn
 
+from .base_backbone import BaseBackbone
 
-class MLPDenoiser(nn.Module):
+
+class MLPDenoiser(nn.Module, BaseBackbone):
     """
     Simple Multi Layer Perceptron denoising model.
     Used for Proof of Concept and testing of the training and inference pipeline.
@@ -20,9 +22,6 @@ class MLPDenoiser(nn.Module):
         )
 
     def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        if t.dim() == 1:
-            t = t.unsqueeze(1)
-
         t = t.float()
         x_0 = torch.cat([x, t], dim=1)
 

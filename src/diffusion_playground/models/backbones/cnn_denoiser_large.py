@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 
-from .shared import SinusoidalTimeEmbedding, DownBlock, UpBlock
+from .shared import DownBlock, UpBlock
+from .base_backbone import BaseBackbone
 
 
-class CNNDenoiserLarge(nn.Module):
+class CNNDenoiserLarge(BaseBackbone):
     """
     CNNDenoiser implementation (U-Net style) with larger architecture.
-    See cnn_denoiser.py for details.
     """
 
     def __init__(
@@ -17,8 +17,6 @@ class CNNDenoiserLarge(nn.Module):
             time_emb_dim: int = 128
     ):
         super().__init__()
-
-        self.time_embedding = SinusoidalTimeEmbedding(time_emb_dim)
 
         # Initial conv
         self.init_conv = nn.Conv2d(in_channels, base_channels, kernel_size=3, padding=1)
@@ -49,39 +47,32 @@ class CNNDenoiserLarge(nn.Module):
         # Output conv
         self.out_conv = nn.Conv2d(base_channels, in_channels, kernel_size=1)
 
-    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        # Ensure t is the right shape
-        if t.dim() == 2:
-            t = t.squeeze(1)
-
-        # Get time embeddings
-        t_emb = self.time_embedding(t)
-
+    def forward(self, x: torch.Tensor, cond_emb: torch.Tensor) -> torch.Tensor:
         # Initial conv
         x0 = self.init_conv(x)
 
         # Encoder
-        x1 = self.down1(x0, t_emb)
+        x1 = self.down1(x0, cond_emb)
         x1_pooled = self.pool1(x1)
 
-        x2 = self.down2(x1_pooled, t_emb)
+        x2 = self.down2(x1_pooled, cond_emb)
         x2_pooled = self.pool2(x2)
 
-        x3 = self.down3(x2_pooled, t_emb)
+        x3 = self.down3(x2_pooled, cond_emb)
         x3_pooled = self.pool3(x3)
 
         # Bottleneck
-        bottleneck = self.bottleneck(x3_pooled, t_emb)
+        bottleneck = self.bottleneck(x3_pooled, cond_emb)
 
         # Decoder with skip connections
         up1 = self.up1(bottleneck)
-        up1 = self.up_block1(up1, x3, t_emb)
+        up1 = self.up_block1(up1, x3, cond_emb)
 
         up2 = self.up2(up1)
-        up2 = self.up_block2(up2, x2, t_emb)
+        up2 = self.up_block2(up2, x2, cond_emb)
 
         up3 = self.up3(up2)
-        up3 = self.up_block3(up3, x1, t_emb)
+        up3 = self.up_block3(up3, x1, cond_emb)
 
         # Output
         out = self.out_conv(up3)

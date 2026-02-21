@@ -2,7 +2,7 @@ import torch
 from torchvision import datasets, transforms
 
 
-def load_cifar_10(path_data: str = "data", download: bool = True) -> tuple[torch.Tensor, torch.Tensor]:
+def load_cifar_10(path_data: str = "data", download: bool = True) -> tuple[torch.Tensor, torch.Tensor, dict]:
     """
     Wrapper to load transformed CIFAR-10 dataset for training.
 
@@ -18,9 +18,10 @@ def load_cifar_10(path_data: str = "data", download: bool = True) -> tuple[torch
     ])
 
     cifar_dataset = datasets.CIFAR10(root=path_data, train=True, transform=transform, download=download)
+    class_idx_to_name = {i: cifar_dataset.classes[i] for i in range(len(cifar_dataset.classes))}
 
     # Extract all images into a single tensor
     cifar_data = torch.stack([cifar_dataset[i][0] for i in range(len(cifar_dataset))])
     cifar_labels = torch.tensor([cifar_dataset[i][1] for i in range(len(cifar_dataset))])
 
-    return cifar_data, cifar_labels
+    return cifar_data, cifar_labels, class_idx_to_name
