@@ -53,22 +53,27 @@ At each training step:
 The models have been trained for 100,000 epochs, resulting in the following capabilities
 for image generation.
 
-**CNNDenoiser - 3M**
+Below you can see the results of the models 3M and 53M for all 10 different CIFAR-10 class labels.
 
-<img src="../../../docs/cifar-10-cnn/cnn-denoiser/generated_samples_epoch_100000.png">
+### 3M Model
 
-**CNNDenoiserLarge - 53M**
+<img src="../../../docs/cifar-10-cnn/cnn-denoiser/results-samples-cnn-denoiser-conditioned.png">
 
-<img src="../../../docs/cifar-10-cnn/cnn-denoiser-large/generated_samples_epoch_100000.png">
+### 53M Model
+
+<img src="../../../docs/cifar-10-cnn/cnn-denoiser-large/results-samples-cnn-denoiser-large-conditioned.png">
 
 ## Challenges and Observations
 
-Training diffusion models on complex datasets like CIFAR-10 is significantly harder than MNIST because:
+We see, that the training is particularly hard for certain classes like Frog, Cat, and Dog, while
+e.g. the class Automobile can be generated well better. The generated images start to look like
+the desired classes, while certainly not showing sufficient quality yet.
 
-1. **Higher Dimensionality**: 32×32×3 = 3,072 dimensions vs 28×28×1 = 784 for MNIST (~4x more complex)
-2. **Complex Textures**: Real-world photographs have rich textures, lighting, and variations
-3. **Multiple Object Classes**: The model must learn 10 distinct object categories simultaneously
-4. **Limited Architecture**: Both U-Net models are still far too small compared to state-of-the-art models
+Still we see, that the larger model does indeed perform better than the smaller one.
+This indicates, that a larger and more sophisticated architecture than the currently
+implemented CNNDenoiser(Large) might be beneficial to use for future attempts. Note,
+that the current models are very simple, with a basic U-Net + Sinusoidal Time Embedding + Label
+Embedding and can (and must) be extended in the future.
 
 ## What's Working Well
 

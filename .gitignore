@@ -1,4 +1,5 @@
 # Custom
+raw-docs
 playground*
 .idea
 local_data
@@ -7,6 +8,7 @@ checkpoints
 src.zip
 .DS_Store
 *.bkp
+*.dtmp
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
