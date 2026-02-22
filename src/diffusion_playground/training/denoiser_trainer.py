@@ -41,7 +41,9 @@ def train_denoiser(
         checkpoint_dir, resume, model, optimizer, device
     )
 
-    for epoch in tqdm(range(start_epoch, epochs)):
+    for epoch in range(start_epoch, epochs):
+        print(f"Epoch {epoch + 1} / {epochs}...")
+
         # Shuffle dataset at the start of each epoch
         perm = torch.randperm(data.shape[0])
 
@@ -49,7 +51,7 @@ def train_denoiser(
         num_batches = 0
 
         # Iterate over the full dataset in batches
-        for i in range(0, data.shape[0], batch_size):
+        for i in tqdm(range(0, data.shape[0], batch_size), leave=False):
             idx = perm[i:i + batch_size]
             x0 = data[idx].to(device)
 
@@ -71,6 +73,7 @@ def train_denoiser(
             num_batches += 1
 
         epoch_loss /= num_batches
+        print(f"  loss: {epoch_loss:.6f}")
 
         # Save checkpoint
         if checkpoint_path is not None and (epoch + 1) % save_every == 0:
@@ -112,7 +115,9 @@ def train_conditioned_denoiser(
         checkpoint_dir, resume, model, optimizer, device
     )
 
-    for epoch in tqdm(range(start_epoch, epochs)):
+    for epoch in range(start_epoch, epochs):
+        print(f"Epoch {epoch + 1} / {epochs}...")
+
         # Shuffle dataset at the start of each epoch
         perm = torch.randperm(data.shape[0])
 
@@ -120,7 +125,7 @@ def train_conditioned_denoiser(
         num_batches = 0
 
         # Iterate over the full dataset in batches
-        for i in range(0, data.shape[0], batch_size):
+        for i in tqdm(range(0, data.shape[0], batch_size), leave=False):
             idx = perm[i:i + batch_size]
             x0 = data[idx].to(device)
             y = labels[idx].to(device)
@@ -143,6 +148,7 @@ def train_conditioned_denoiser(
             num_batches += 1
 
         epoch_loss /= num_batches
+        print(f"  loss: {epoch_loss:.6f}")
 
         # Save checkpoint
         if checkpoint_path is not None and (epoch + 1) % save_every == 0:
