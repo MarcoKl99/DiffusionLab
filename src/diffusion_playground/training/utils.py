@@ -34,6 +34,12 @@ def setup_training(
     # Ensure data stays on CPU (datasets are usually too large for GPU memory)
     data = data.cpu()
 
+    # Validate that data is in the expected [-1, 1] range
+    data_min = data.min().item()
+    data_max = data.max().item()
+    if data_min >= 0.0 or data_min < -1.0 - 1e-3 or data_max > 1.0 + 1e-3:
+        raise ValueError(f"Data is in range [{data_min:.3f}, {data_max:.3f}] - expexted to be in [-1, 1]")
+
     return optimizer, device, data
 
 
