@@ -1,6 +1,6 @@
 # Custom
 raw-docs
-playground*
+create_samples.py
 .idea
 local_data
 data
@@ -9,6 +9,7 @@ src.zip
 .DS_Store
 *.bkp
 *.dtmp
+playground.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
