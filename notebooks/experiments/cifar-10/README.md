@@ -12,6 +12,7 @@ The specific models used in this experiment are the backbones
 
 - [CNNDenoiser](../../../src/diffusion_playground/models/backbones/cnn_denoiser.py) (3M)
 - [CNNDenoiserLarge](../../../src/diffusion_playground/models/backbones/cnn_denoiser_large.py) (53M)
+- [CNNDenoiserLargeAttention](../../../src/diffusion_playground/models/backbones/cnn_denoiser_large_attention.py) (58M)
 
 embedded into the model wrapper for time- and class-conditioning
 [TimeAndClassConditionedModel](../../../src/diffusion_playground/models/time_and_class_conditioned_model.py).
@@ -62,6 +63,10 @@ Below you can see the results of the models 3M and 53M for all 10 different CIFA
 ### 53M Model
 
 <img src="../../../docs/cifar-10-cnn/cnn-denoiser-large/results-samples-cnn-denoiser-large-conditioned.png">
+
+### 58M Model + Attention
+
+<img src="../../../docs/cifar-10-cnn/cnn-denoiser-large-attention/results-samples-cnn-denoiser-large-attention-conditioned.png">
 
 ## Challenges and Observations
 
