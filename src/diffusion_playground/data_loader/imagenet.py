@@ -5,31 +5,22 @@ from torchvision import transforms, datasets
 from datasets import load_dataset as hf_load_dataset
 
 
-def load_imagenet(split: str = "train", path_data: str = "data/tiny-imagenet", limit: int | None = None) -> tuple[torch.Tensor, torch.Tensor, dict]:
+def load_imagenet(
+        split: str = "train",
+        path_data: str = "data/tiny-imagenet",
+        limit: int | None = None,
+        class_indices: list[int] | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, dict]:
     """
     Load Tiny ImageNet dataset. Loads from a local ImageNet-style directory if available,
     otherwise downloads from HuggingFace, saves locally, and then loads.
 
-    Local directory structure:
-        <path_data>/
-        ├── train/
-        │   ├── n01443537/
-        │   │   ├── 000000.JPEG
-        │   │   └── ...
-        │   └── ...
-        └── valid/
-            ├── n01443537/
-            └── ...
-
-    This structure is compatible with torchvision.datasets.ImageFolder and
-    can be swapped for full ImageNet without any code changes.
-
-    Tiny ImageNet: 200 classes, 64x64 RGB images.
-    100,000 training samples, 10,000 validation samples.
-
     :param split: Dataset split to load ("train" or "valid").
     :param path_data: Root directory of the local ImageNet-style cache.
     :param limit: Optional max number of samples to load. Useful for fast local runs.
+    :param class_indices: Optional list of class indices to load (e.g. list(range(10)) for
+                          the first 10 classes). Class indices follow ImageFolder's alphabetical
+                          ordering of the synset directories. If None, all classes are loaded.
     :return: Tuple of (images [N, 3, 64, 64], labels [N], class_idx_to_name dict).
     """
     split_dir = Path(path_data) / split
@@ -38,19 +29,10 @@ def load_imagenet(split: str = "train", path_data: str = "data/tiny-imagenet", l
         print(f"No local cache found. Downloading Tiny ImageNet ({split}) from HuggingFace...")
         save_imagenet(split=split, path_data=path_data)
 
-    return _load_from_image_folder(split_dir, limit=limit)
+    return _load_from_image_folder(split_dir, limit=limit, class_indices=class_indices)
 
 
 def save_imagenet(split: str = "train", path_data: str = "data/tiny-imagenet") -> None:
-    """
-    Download Tiny ImageNet from HuggingFace and save it locally in ImageNet directory structure.
-
-    Each image is saved as a JPEG under <path_data>/<split>/<class_name>/<idx>.JPEG,
-    which is the standard ImageNet layout understood by torchvision.datasets.ImageFolder.
-
-    :param split: Dataset split to download and save ("train" or "valid").
-    :param path_data: Root directory to save the dataset into.
-    """
     cache_dir = Path(path_data)
     print(f"Downloading Tiny ImageNet ({split}) from HuggingFace...")
     dataset = hf_load_dataset("zh-plus/tiny-imagenet", split=split)
@@ -65,7 +47,11 @@ def save_imagenet(split: str = "train", path_data: str = "data/tiny-imagenet") -
     print(f"Tiny ImageNet ({split}) saved to {cache_dir / split}")
 
 
-def _load_from_image_folder(split_dir: Path, limit: int | None = None) -> tuple[torch.Tensor, torch.Tensor, dict]:
+def _load_from_image_folder(
+        split_dir: Path,
+        limit: int | None = None,
+        class_indices: list[int] | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, dict]:
     """Load an ImageNet-style directory into tensors using ImageFolder."""
     transform = transforms.Compose([
         transforms.ToTensor(),
@@ -75,9 +61,22 @@ def _load_from_image_folder(split_dir: Path, limit: int | None = None) -> tuple[
     dataset = datasets.ImageFolder(root=str(split_dir), transform=transform)
     class_idx_to_name = {v: k for k, v in dataset.class_to_idx.items()}
 
-    n = min(limit, len(dataset)) if limit is not None else len(dataset)
-    print(f"Loading Tiny ImageNet from local cache: {split_dir} ({n} samples)")
-    images = torch.stack([dataset[i][0] for i in range(n)])
-    labels = torch.tensor([dataset[i][1] for i in range(n)])
+    # Filter to the requested classes before touching any image files.
+    # dataset.samples is a list of (path, class_idx) built from the directory
+    # scan — no pixel data has been read at this point.
+    samples = dataset.samples
+    if class_indices is not None:
+        class_set = set(class_indices)
+        samples = [(path, idx) for path, idx in samples if idx in class_set]
+        class_idx_to_name = {i: class_idx_to_name[i] for i in class_indices if i in class_idx_to_name}
 
-    return images, labels, class_idx_to_name
+    n = min(limit, len(samples)) if limit is not None else len(samples)
+    print(f"Loading Tiny ImageNet from local cache: {split_dir} ({n} samples, {len(class_idx_to_name)} classes)")
+
+    images, labels = [], []
+    for path, class_idx in samples[:n]:
+        img = dataset.transform(dataset.loader(path))
+        images.append(img)
+        labels.append(class_idx)
+
+    return torch.stack(images), torch.tensor(labels), class_idx_to_name

@@ -112,6 +112,7 @@ def generate_samples_conditioned(
     model.eval()
 
     num_samples = class_labels.shape[0]
+    class_labels = class_labels.to(device)
     xt = torch.randn(num_samples, *image_shape, device=device)
 
     # Reverse diffusion loop (stochastic sampling)
