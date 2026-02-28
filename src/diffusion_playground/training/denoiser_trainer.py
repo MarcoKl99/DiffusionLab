@@ -7,6 +7,7 @@ from ..diffusion.training_utils import sample_xt
 from ..diffusion.noise_schedule import LinearNoiseSchedule
 from ..models.time_conditioned_model import TimeConditionedModel
 from ..models.time_and_class_conditioned_model import TimeAndClassConditionedModel
+from ..evaluation.metrics_tracker import MetricsTracker
 from .utils import setup_training, setup_checkpoint_resume, save_epoch_checkpoint
 
 
@@ -93,6 +94,7 @@ def train_conditioned_denoiser(
         checkpoint_dir: str | None = None,
         save_every: int = 1_000,
         resume: bool = True,
+        metrics_tracker: MetricsTracker | None = None,
 ) -> None:
     """
     Train a class-conditioned model on the given data.
@@ -109,6 +111,9 @@ def train_conditioned_denoiser(
     :param checkpoint_dir: Directory to save checkpoints (None = no saving)
     :param save_every: Save checkpoint every N epochs
     :param resume: If True, automatically resume from the latest checkpoint if available
+    :param metrics_tracker: Optional MetricsTracker to evaluate and record metrics at each
+                            checkpoint interval. When provided, FID and sample grids are
+                            saved alongside the model checkpoints.
     """
     optimizer, device, data = setup_training(model, data, noise_schedule, lr)
     start_epoch, best_loss, checkpoint_path = setup_checkpoint_resume(
@@ -150,11 +155,13 @@ def train_conditioned_denoiser(
         epoch_loss /= num_batches
         print(f"  loss: {epoch_loss:.6f}")
 
-        # Save checkpoint
+        # Save checkpoint and evaluate metrics at the configured interval
         if checkpoint_path is not None and (epoch + 1) % save_every == 0:
             best_loss = save_epoch_checkpoint(
                 checkpoint_path, epoch, model, optimizer, epoch_loss, noise_schedule, best_loss
             )
+            if metrics_tracker is not None:
+                metrics_tracker.evaluate(model, epoch + 1, epoch_loss)
 
 
 def load_checkpoint(
