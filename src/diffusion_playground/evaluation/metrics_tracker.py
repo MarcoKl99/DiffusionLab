@@ -84,7 +84,7 @@ class MetricsTracker:
         print(f"\n[MetricsTracker] Evaluating epoch {epoch}...")
 
         model.eval()
-        sample_path = self._generate_sample_grid(model, epoch)
+        self._generate_sample_grid(model, epoch, self.samples_dir)
         fid_score = self._compute_fid(model)
         model.train()
 
@@ -92,19 +92,19 @@ class MetricsTracker:
             "epoch": epoch,
             "train_loss": train_loss,
             "fid": fid_score,
-            "sample_path": str(sample_path.relative_to(self.metrics_dir.parent)),
         }
         self._metrics["entries"].append(entry)
         self._save_metrics()
+        self.visualize(self.metrics_dir)
 
-        print(f"[MetricsTracker] loss={train_loss:.6f} | FID={fid_score:.2f} | saved {sample_path.name}")
+        print(f"[MetricsTracker] loss={train_loss:.6f} | FID={fid_score:.2f}")
         return entry
 
-    def visualize(self, save_path: str | None = None) -> None:
+    def visualize(self, save_path: Path) -> None:
         """
         Plot training loss and FID score as two separate figures.
 
-        :param save_path: Directory to save the figures into. When provided, saves
+        :param save_path: Directory to save the figures into. Saves
                           `training_loss.png` and `fid.png` to that directory instead
                           of displaying them. The directory is created if it does not exist.
         """
@@ -114,9 +114,7 @@ class MetricsTracker:
             print("No evaluation metrics recorded yet.")
             return
 
-        out_dir = Path(save_path) if save_path else None
-        if out_dir is not None:
-            out_dir.mkdir(parents=True, exist_ok=True)
+        save_path.mkdir(parents=True, exist_ok=True)
 
         epochs = [e["epoch"] for e in entries]
         losses = [e["train_loss"] for e in entries]
@@ -131,10 +129,7 @@ class MetricsTracker:
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
 
-        if out_dir is not None:
-            plt.savefig(out_dir / "training_loss.png", dpi=120, bbox_inches="tight")
-        else:
-            plt.show()
+        plt.savefig(save_path / "training_loss.png", dpi=120, bbox_inches="tight")
         plt.close()
 
         # FID
@@ -144,19 +139,16 @@ class MetricsTracker:
         fid_epochs, fid_scores = zip(*fid_entries)
         fig, ax = plt.subplots(figsize=(7, 4))
         ax.plot(fid_epochs, fid_scores, color="tomato", linewidth=1.5, marker="o", markersize=4)
-        ax.set_title("FID-Score")
+        ax.set_title(f"FID-Score ({self.num_fid_samples} Samples)")
         ax.set_xlabel("Epoch")
         ax.set_ylabel("FID")
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
 
-        if out_dir is not None:
-            plt.savefig(out_dir / "fid.png", dpi=120, bbox_inches="tight")
-        else:
-            plt.show()
+        plt.savefig(save_path / "fid.png", dpi=120, bbox_inches="tight")
         plt.close()
 
-    def _generate_sample_grid(self, model: nn.Module, epoch: int) -> Path:
+    def _generate_sample_grid(self, model: nn.Module, epoch: int, path: Path):
         """
         Generate `num_samples_per_class` images for each class in eval_classes and save
         as a PNG grid (rows = classes, columns = samples).
@@ -192,11 +184,16 @@ class MetricsTracker:
         plt.suptitle(f"Generated Samples — Epoch {epoch}", fontsize=11, fontweight="bold")
         plt.tight_layout()
 
-        path = self.samples_dir / f"epoch_{epoch:06d}.png"
+        path = path / f"samples_epoch_{epoch}.png"
         plt.savefig(path, dpi=100, bbox_inches="tight")
         plt.close()
 
-        return path
+    def _get_or_create_epochs_results_path(self, epoch: int) -> Path:
+        epoch_results_path = self.samples_dir / f"epoch_{epoch:06d}"
+        if not epoch_results_path.exists():
+            epoch_results_path.mkdir(parents=True, exist_ok=True)
+
+        return epoch_results_path
 
     def _compute_fid(self, model: nn.Module) -> float:
         """
