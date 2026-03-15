@@ -29,6 +29,7 @@ class MetricsTracker:
             image_shape: tuple[int, int, int],
             eval_classes: list[int],
             real_images: torch.Tensor,
+            real_labels: torch.Tensor,
             num_samples_per_class: int = 4,
             num_fid_samples: int = 1024,
             device: str | torch.device = "cpu",
@@ -42,6 +43,9 @@ class MetricsTracker:
         :param eval_classes: Class indices to generate sample grids for at each evaluation step.
         :param real_images: Full training set tensor in [-1, 1] range, used as the real
                             image reference distribution for FID computation.
+        :param real_labels: Integer class labels corresponding to each image in real_images.
+                            Used internally to restrict and balance the real reference
+                            distribution to eval_classes only.
         :param num_samples_per_class: Number of images generated per class in the sample grid.
         :param num_fid_samples: Total number of generated images used to compute FID.
                                 Distributed evenly across eval_classes.
@@ -53,8 +57,14 @@ class MetricsTracker:
         self.noise_schedule = noise_schedule
         self.image_shape = image_shape
         self.eval_classes = eval_classes
-        self.real_images = real_images
         self.num_samples_per_class = num_samples_per_class
+
+        # Pre-index real images per eval class so FID always samples equal numbers
+        # from each class, matching the generated distribution exactly.
+        self._real_per_class: dict[int, torch.Tensor] = {
+            cls: real_images[real_labels == cls]
+            for cls in eval_classes
+        }
         self.num_fid_samples = num_fid_samples
         self.device = torch.device(device) if isinstance(device, str) else device
         self.class_names = class_names or {i: str(i) for i in eval_classes}
@@ -204,15 +214,19 @@ class MetricsTracker:
         """
 
         fid = FrechetInceptionDistance(feature=2048, normalize=True).to(self.device)
+        samples_per_class = max(1, self.num_fid_samples // len(self.eval_classes))
 
-        # Real images: random subset, convert [-1, 1] → [0, 1]
-        indices = torch.randperm(len(self.real_images))[:self.num_fid_samples]
-        real_batch = self.real_images[indices].to(self.device)
+        # Real images: sample equal numbers per eval class, convert [-1, 1] → [0, 1]
+        real_chunks = []
+        for cls in self.eval_classes:
+            pool = self._real_per_class[cls]
+            idx = torch.randperm(len(pool))[:samples_per_class]
+            real_chunks.append(pool[idx])
+        real_batch = torch.cat(real_chunks, dim=0).to(self.device)
         real_batch = ((real_batch + 1) / 2).clamp(0, 1)
         fid.update(real_batch, real=True)
 
-        # Generated images: evenly distributed across eval_classes
-        samples_per_class = max(1, self.num_fid_samples // len(self.eval_classes))
+        # Generated images: same samples_per_class per eval class
         all_labels = [cls for cls in self.eval_classes for _ in range(samples_per_class)]
         images = generate_samples_conditioned(
             model=model,
