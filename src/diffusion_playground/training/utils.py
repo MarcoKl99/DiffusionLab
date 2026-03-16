@@ -134,13 +134,14 @@ def save_epoch_checkpoint(
             'beta_end': noise_schedule.betas[-1].item(),
         }
     }
+    # Delete any existing epoch checkpoints before saving the new one.
+    # Truncate to 0 bytes first so that even if the OS/Google Drive moves the
+    # file to trash instead of permanently deleting it, no storage is wasted.
+    for old_checkpoint in checkpoint_path.glob("checkpoint_epoch_*.pt"):
+        old_checkpoint.write_bytes(b'')
+        old_checkpoint.unlink()
+
     checkpoint_file = checkpoint_path / f"checkpoint_epoch_{epoch + 1}.pt"
     torch.save(checkpoint, checkpoint_file)
-
-    if epoch_loss < best_loss:
-        best_loss = epoch_loss
-        best_checkpoint_file = checkpoint_path / "best_model.pt"
-        torch.save(checkpoint, best_checkpoint_file)
-        print(f"\n✓ New best model saved at epoch {epoch + 1} with loss {epoch_loss:.6f}")
 
     return best_loss
