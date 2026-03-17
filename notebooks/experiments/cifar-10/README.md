@@ -201,7 +201,16 @@ The curves of the FID and Training Loss can be seen below.
 
 <img src="./evaluation/CNNDenoiser15/curves.png">
 
-...
+In this experiment we see that the FID decreases more steadily, we achieve a smaller value of
+36.75. Still, the curve seems to level off again after around 300 epochs.
+
+### Samples
+
+<img src="./evaluation/CNNDenoiser15/samples_epoch_500.png">
+
+The samples of this model look way better for all classes, again especially for
+`Automobile` and `Horse` which seem to be well learnable. We can also see good samples for
+`Dog` and at least some recognizable structures for the class `Cat`.
 
 ## 4. CNNDenoiser21
 
