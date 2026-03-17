@@ -1,137 +1,332 @@
-# CIFAR-10 Diffusion Model - Experiment Documentation
+# Evolution of the CIFAR-10 Experiments
 
-## Overview
+This file gives an overview about the results and evolution of architecture and training process
+for handling the CIFAR-10 dataset in the task of image generation using U-Net style diffusion
+models.
 
-This experiment aims to evaluate the image generation capabilities of CNN-based models,
-following the U-Net approach and conditioned both on time-step and the class label
-of the COFAR-10 dataset for controlled image generation.
+## General Architecture
 
-## Used Models
+To make it easy to switch out backbone models while keeping time and class conditioning,
+the architecture was implemented such that backbone models implement the `BaseBackbone`
+interface. This generalizes the idea, that every backbone's forward pass method
+takes an input `x` as well as a conditional embedding `cond_emb` as an input. The
+conditional embedding is here provided by the wrapper and therefore either realized
+as a pure time conditional or as a time and class conditional embedding.
 
-The specific models used in this experiment are the backbones
+For the experiments described below, a time and class conditional embedding was used.
 
-- [CNNDenoiser](../../../src/diffusion_playground/models/backbones/cnn_denoiser.py) (3M)
-- [CNNDenoiserLarge](../../../src/diffusion_playground/models/backbones/cnn_denoiser_large.py) (53M)
-- [CNNDenoiserLargeAttention](../../../src/diffusion_playground/models/backbones/cnn_denoiser_large_attention.py) (58M)
+## 1. Small CNNDenoiser as a PoC
 
-embedded into the model wrapper for time- and class-conditioning
-[TimeAndClassConditionedModel](../../../src/diffusion_playground/models/time_and_class_conditioned_model.py).
+To test the general process, a small CNN-based U-Net was implemented.
 
-## Noise Schedule
+### Architecture
 
-As a noise schedule, the following configuration was used.
+**Time Embedding:** SinusoidalTimeEmbedding (128 embedding dimension)
 
-- **Type**: Linear schedule
-- **Time steps**: T = 1,000
-- **Beta range**: [1e-4, 0.02]
+**Backbone-Architecture:**
 
-## Dataset
+```text
+Input
+-> Init-Conv
 
-- **CIFAR-10 Training Set**: 50,000 color images (32×32 pixels)
-- **Classes**: airplane, automobile, bird, cat, deer, dog, frog, horse, ship, truck
-- **Normalization**: Scaled to [-1, 1] range per channel
+-> Down1
+-> Pool1
 
-## Training Configuration
+-> Down2
+-> Pool2
 
-- **Optimizer**: Adam
-- **Learning rate**: 1e-3
-- **Batch size**: 128
-- **Loss function**: MSE (Mean Squared Error) between predicted and actual noise
-- **Training epochs**: 100,000 iterations
+-> Bottleneck
 
-## Training Process
+-> Up-sampling1
+-> Up1 + Res
 
-At each training step:
+-> Up-sampling2
+-> Up2 + Res
 
-1. Sample a batch of real images from CIFAR-10
-2. Randomly sample time steps t for each image
-3. Add noise according to the schedule at time t (forward diffusion)
-4. Train the model to predict the added noise across all 3 color channels, conditioned on the given class label y
-5. Update weights via backpropagation
+-> Out-Conv
+```
 
-## Results
+➡️ Total number of parameters: 8M
 
-The models have been trained for 100,000 epochs, resulting in the following capabilities
-for image generation.
+**Backbone-Configuration:** 128 Base-Channels
 
-Below you can see the results of the models 3M and 53M for all 10 different CIFAR-10 class labels.
+**Training-Configuration:**
 
-### 3M Model
+| Parameter     | Value |
+|---------------|-------|
+| Learning Rate | 1e-3  |
+| Batch-Size    | 128   |
 
-<img src="../../../docs/cifar-10-cnn/cnn-denoiser/results-samples-cnn-denoiser-conditioned.png">
+### Results
 
-### 53M Model
+The FID- and Loss-Curve can be seen below.
 
-<img src="../../../docs/cifar-10-cnn/cnn-denoiser-large/results-samples-cnn-denoiser-large-conditioned.png">
+<img src="./evaluation/CNNDenoiser/curves.png">
 
-### 58M Model + Attention
+We see, that the FID starts to level off after around 300 epochs and even though the loss further
+decreases, the quality of the generated images based on the FID metric does not improve
+anymore. This leads to the conclusion, that the model indeed learns, but is not capable
+of depicting the CIFAR-10 dataset in a generation process well enough yet.
 
-<img src="../../../docs/cifar-10-cnn/cnn-denoiser-large-attention/results-samples-cnn-denoiser-large-attention-conditioned.png">
+**Samples at the best FID score (epoch 300):**
 
-## Challenges and Observations
+<img src="./evaluation/CNNDenoiser/samples_epoch_300.png">
 
-We see, that the training is particularly hard for certain classes like Frog, Cat, and Dog, while
-e.g. the class Automobile can be generated well better. The generated images start to look like
-the desired classes, while certainly not showing sufficient quality yet.
+The samples are not yet recognizable, besides some features in e.g. the class `automobile`.
 
-Still we see, that the larger model does indeed perform better than the smaller one.
-This indicates, that a larger and more sophisticated architecture than the currently
-implemented CNNDenoiser(Large) might be beneficial to use for future attempts. Note,
-that the current models are very simple, with a basic U-Net + Sinusoidal Time Embedding + Label
-Embedding and can (and must) be extended in the future.
+## 2. CNNDenoiserLargeAttention
 
-## What's Working Well
+At this point, congrats to me for the amazing naming of this model 😉.
+The *CNNDenoiserLargeAttention* implements a deeper model architecture, together with
+introduced self-attention blocks at certain stages.
 
-✅ **Shape Learning**: The model clearly learns object shapes (boats, horses, vehicles)
-✅ **Color Structure**: Appropriate colors for different object categories
-✅ **Spatial Coherence**: Objects have proper structure (e.g., animals have legs)
-✅ **Diversity**: Different samples show variety in generated objects
+### Changed Architecture
 
-## Technical Components
+```text
+Input
+-> Init-Conv
 
-1. **`CNNDenoiser`** (`src/diffusion_playground/models/cnn_denoiser.py`)
-    - U-Net-style architecture
-    - Configurable input channels (1 for grayscale, 3 for RGB)
-    - Sinusoidal time embeddings
-    - Skip connections between encoder and decoder
+-> Down1
+-> Pool1
 
-2. **`CNNDenoiserLarge`** (`src/diffusion_playground/models/cnn_denoiser_large.py`)
-    - Larger version of the CNNDenoiser
-    - 1 additional down- and up-sampling step
-    - Higher base dimension (64 -> 128)
+-> Down2
+-> Pool2
 
-2. **`LinearNoiseSchedule`** (`src/diffusion_playground/diffusion/noise_schedule.py`)
-    - Computes $ \beta_t $, $ \alpha_t $, and $ \hat{\alpha}_t $ for each time step
+-> Down3
+-> Pool3
 
-3. **`train_denoiser()`** (`src/diffusion_playground/training/denoiser_trainer.py`)
-    - Generic training loop
-    - Automatic checkpointing and resume
-    - Works with any model that follows the interface
+-> Bottleneck
+-> Attention
 
-4. **`generate_samples()`** (`src/diffusion_playground/diffusion/backward.py`)
-    - Reverse diffusion process
-    - Stochastic sampling for diversity
+-> Up-sampling1
+-> Up1 + Res
+-> Attention
 
-5. **`generate_samples_from_checkpoints()`** (`src/diffusion_playground/visualization/image_generation_results.py`)
-    - Automated visualization generation
-    - Handles both grayscale and RGB images
+-> Up-sampling2
+-> Up2 + Res
 
-## Conclusion
+-> Up-sampling3
+-> Up3 + Res
 
-This experiment successfully demonstrates that:
+-> Out-Conv
+```
 
-- ✅ Diffusion models can learn to generate color images with complex objects
-- ✅ The model learns **recognizable shapes** (boats, horses, vehicles, animals)
-- ✅ U-Net architecture scales from grayscale to RGB images
-- ✅ The generic training pipeline works across different datasets and modalities
-- ✅ Even a relatively simple model can capture meaningful structure in complex data
+➡️ Total number of parameters: 58M
 
----
+### Results
 
-**Experiment Date**: February 2026
+The FID- and Loss-Curve can be seen below.
 
-**Training Hardware**: Google Colab T4 GPU
+<img src="./evaluation/CNNDenoiserLargeAttention/curves.png">
 
-**Framework**: PyTorch 2.x
+The FID score shows a lower minimum, indicating a better result in generating images based
+on CIFAR-10. Still, we see a levelling off after again about 300 epochs at a not yet sufficient
+quality. A little bit of research about the used models in the original DDPM paper shows, that
+the backbone architecture seems to be too shallow. Deeper models will be applied in further
+experiments.
 
-**Achievement Unlocked**: First colored image diffusion model! 🎨✨
+**Samples at the best FID score (epoch 275):**
+
+<img src="./evaluation/CNNDenoiserLargeAttention/samples_epoch_275.png">
+
+The samples are way more recognizable, compared to the result of the 8M model (CNNDenoiser)
+above. A significantly better performance can be seen at `Automobile` and `Horse` compared
+to the other classes. Still, the images lack realism.
+
+For further experiments, even deeper models will be considered.
+
+## 3. CNNDenoiser15
+
+This model finally changes the naming, with the number `15` indicating the number of
+convolutional blocks in the entire network. While increasing spatial processing, the
+architecture in this experiment avoided further reducing spatial resolution, as the
+bottleneck layers already process feature maps of only the size `4x4xC`.
+
+### Architecture
+
+```text
+Input
+-> Init-Conv
+
+-> Down1a
+-> Down1b
+-> Pool1
+
+-> Down2a
+-> Down2b
+-> Pool2
+
+-> Down3a
+-> Down3b
+-> Pool3
+
+-> Bottleneck
+-> Attention
+-> Bottleneck
+-> Attention
+-> Bottleneck
+
+-> Up-sampling1
+-> Up1b + Res
+-> Attention
+-> Up1a + Res
+
+-> Up-sampling2
+-> Up2b + Res
+-> Attention
+-> Up2a + Res
+
+-> Up-sampling3
+-> Up3b + Res
+-> Up3a + Res
+
+-> Out-Conv
+```
+
+This sums up to
+
+```text
+Encoder: 2 x 3 = 6 Conv Blocks
+Bottleneck: 3 Conv Blocks
+Decoder: 2 x 3 = 6 Conv Blocks
+
+-> Total: 6 + 3 + 6 = 15 Conv Blocks
+```
+
+➡️ Total number of parameters: 167M
+
+### Results
+
+The curves of the FID and Training Loss can be seen below.
+
+<img src="./evaluation/CNNDenoiser15/curves.png">
+
+...
+
+## 4. CNNDenoiser21
+
+This model implements an even deeper architecture, using one more conv layer per
+Down- and Up-Block.
+
+### Architecture
+
+```text
+Input
+-> Init-Conv
+
+-> Down1a
+-> Down1b
+-> Down1c
+-> Pool1
+
+-> Down2a
+-> Down2b
+-> Down2c
+-> Pool2
+
+-> Down3a
+-> Down3b
+-> Down3c
+-> Pool3
+
+-> Bottleneck
+-> Attention
+-> Bottleneck
+-> Attention
+-> Bottleneck
+
+-> Up-sampling1
+-> Up1c + Res
+-> Up1b + Res
+-> Attention
+-> Up1a + Res
+
+-> Up-sampling2
+-> Up2c + Res
+-> Up2b + Res
+-> Attention
+-> Up2a + Res
+
+-> Up-sampling3
+-> Up3c + Res
+-> Up3b + Res
+-> Up3a + Res
+
+-> Out-Conv
+```
+
+➡️ Total number of parameters: 230M
+
+### New Residual Connections within Down-/Up-Blocks
+
+Besides the additional layers at each sampling stage, this model also implements a SiLU
+and a residual projection from the input to the final output layer within each Down- and
+Up-Block.
+
+### Results
+
+...
+
+## 5. CNNDenoiser27
+
+Similar to the model before, this implementation also includes another convolutional block
+per Down- and Up-Block.
+
+### Architecture
+
+```text
+Input
+-> Init-Conv
+
+-> Down1a
+-> Down1b
+-> Down1c
+-> Down1d
+-> Pool1
+
+-> Down2a
+-> Down2b
+-> Down2c
+-> Down2d
+-> Pool2
+
+-> Down3a
+-> Down3b
+-> Down3c
+-> Down3d
+-> Pool3
+
+-> Bottleneck
+-> Attention
+-> Bottleneck
+-> Attention
+-> Bottleneck
+
+-> Up-sampling1
+-> Up1d
+-> Up1c
+-> Up1b
+-> Attention
+-> Up1a
+
+-> Up-sampling2
+-> Up2d
+-> Up2c
+-> Up2b
+-> Attention
+-> Up2a
+
+-> Up-sampling3
+-> Up3d
+-> Up3c
+-> Up3b
+-> Up3a
+
+-> Out-Conv
+```
+
+➡️ Total number of parameters: 292M
+
+### Results
+
+...

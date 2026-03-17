@@ -4,15 +4,9 @@ import torch.nn as nn
 
 class AttentionBlock(nn.Module):
     """
-    Self-attention block for spatial feature maps.
-
-    Each spatial position (h, w) is treated as a token with C-dimensional features.
-    Applies multi-head self-attention over all H*W tokens so every position can attend
-    to every other position — giving the network global context that convolutions alone
-    cannot provide. The result is added back via a residual connection.
-
-    Intended for use at low spatial resolutions (e.g. 4×4 or 8×8) where the O(N²)
-    attention cost is negligible and the benefit of global reasoning is highest.
+    Self-attention block.
+    This block applies multi head self-attention to all HxW elements of the feature maps and therefore
+    provides a global context of attention across each entire feature map.
     """
 
     def __init__(self, channels: int, num_heads: int = 8):
@@ -20,6 +14,7 @@ class AttentionBlock(nn.Module):
         :param channels: Number of feature map channels (must be divisible by num_heads)
         :param num_heads: Number of attention heads
         """
+
         super().__init__()
         self.norm = nn.GroupNorm(32, channels)
         self.attn = nn.MultiheadAttention(channels, num_heads, batch_first=True)
@@ -29,19 +24,24 @@ class AttentionBlock(nn.Module):
         :param x: Feature map of shape (B, C, H, W)
         :return: Feature map of same shape with self-attention applied
         """
+
         B, C, H, W = x.shape
 
-        # Normalize, flatten spatial dims into a sequence, apply attention, restore shape
-        h = self.norm(x).flatten(2).transpose(1, 2)   # (B, H*W, C)
-        h, _ = self.attn(h, h, h)
-        h = h.transpose(1, 2).view(B, C, H, W)        # (B, C, H, W)
+        # Normalize and flatten
+        h = self.norm(x).flatten(2).transpose(1, 2)
 
-        return x + h  # residual connection
+        # Perform self-attention
+        h, _ = self.attn(h, h, h)
+
+        # Restore the original shape
+        h = h.transpose(1, 2).view(B, C, H, W)
+
+        return x + h  # Residual connection
 
 
 class DownBlock(nn.Module):
     """
-    Down-sampling block with two conv layers.
+    Down-sampling block with two conv layers and a residual connection.
     Note that here we only implement the convolutional processing, pooling is being done afterwards by
     the denoiser-network.
     """
@@ -53,25 +53,19 @@ class DownBlock(nn.Module):
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
         self.norm1 = nn.GroupNorm(32, out_channels)
         self.norm2 = nn.GroupNorm(32, out_channels)
-        self.relu = nn.ReLU()
+        self.act = nn.SiLU()
+
+        # 1x1 conv to match input channels to output channels for residual connection
+        self.res_proj = nn.Conv2d(in_channels, out_channels, kernel_size=1) if in_channels != out_channels else nn.Identity()
 
         # Time embedding projection
         self.time_mlp = nn.Linear(time_emb_dim, out_channels)
 
     def forward(self, x: torch.Tensor, t_emb: torch.Tensor) -> torch.Tensor:
-        """
-        Forward pass through the down-sampling convolutional block.
-
-        :param x: Input feature map.
-        :param t_emb: Embedded time step.
-        :return: Tensor of the convoluted feature maps, as input to subsequent pooling
-                 (could be included in the down-block architecture as well ;) )
-        """
-
         # First conv + group-norm
         h = self.conv1(x)
         h = self.norm1(h)
-        h = self.relu(h)
+        h = self.act(h)
 
         # Add time embedding
         t_emb_proj = self.time_mlp(t_emb)
@@ -81,14 +75,14 @@ class DownBlock(nn.Module):
         # Second conv + group-norm
         h = self.conv2(h)
         h = self.norm2(h)
-        h = self.relu(h)
+        h = self.act(h)
 
-        return h
+        return h + self.res_proj(x)
 
 
 class UpBlock(nn.Module):
     """
-    Up-sampling block with conv layers and skip connection.
+    Up-sampling block with conv layers, skip connection, and residual connection.
     """
 
     def __init__(self, in_channels: int, out_channels: int, time_emb_dim: int):
@@ -99,7 +93,10 @@ class UpBlock(nn.Module):
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
         self.norm1 = nn.GroupNorm(32, out_channels)
         self.norm2 = nn.GroupNorm(32, out_channels)
-        self.relu = nn.ReLU()
+        self.act = nn.SiLU()
+
+        # 1x1 conv to project concatenated input (in_channels * 2) to out_channels for residual connection
+        self.res_proj = nn.Conv2d(in_channels * 2, out_channels, kernel_size=1)
 
         # Time embedding projection
         self.time_mlp = nn.Linear(time_emb_dim, out_channels)
@@ -115,12 +112,12 @@ class UpBlock(nn.Module):
         """
 
         # Concatenate with skip connection
-        x = torch.cat([x, skip], dim=1)
+        x_cat = torch.cat([x, skip], dim=1)
 
         # First conv + group-norm
-        h = self.conv1(x)
+        h = self.conv1(x_cat)
         h = self.norm1(h)
-        h = self.relu(h)
+        h = self.act(h)
 
         # Add time embedding
         t_emb_proj = self.time_mlp(t_emb)
@@ -130,6 +127,6 @@ class UpBlock(nn.Module):
         # Second conv + group-norm
         h = self.conv2(h)
         h = self.norm2(h)
-        h = self.relu(h)
+        h = self.act(h)
 
-        return h
+        return h + self.res_proj(x_cat)
