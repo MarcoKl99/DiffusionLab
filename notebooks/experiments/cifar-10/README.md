@@ -217,6 +217,11 @@ The samples of this model look way better for all classes, again especially for
 This model implements an even deeper architecture, using one more conv layer per
 Down- and Up-Block.
 
+### Training Parameters
+
+For this training run, the batch size was reduced from `128` to `64` due to the increasing
+vRAM utilization that comes with the larger model size.
+
 ### Architecture
 
 ```text
@@ -264,7 +269,7 @@ Input
 -> Out-Conv
 ```
 
-➡️ Total number of parameters: 230M
+➡️ Total number of parameters: 237M
 
 ### New Residual Connections within Down-/Up-Blocks
 
