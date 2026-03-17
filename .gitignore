@@ -10,6 +10,8 @@ src.zip
 *.bkp
 *.dtmp
 playground.py
+evaluation
+plot_metrics.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

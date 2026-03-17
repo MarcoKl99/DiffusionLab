@@ -19,7 +19,7 @@ def train_denoiser(
         lr: float = 1e-3,
         batch_size: int = 128,
         checkpoint_dir: str | None = None,
-        save_every: int = 1_000,
+        save_every: int = 10,
         resume: bool = True,
 ) -> None:
     """
@@ -92,7 +92,8 @@ def train_conditioned_denoiser(
         lr: float = 1e-3,
         batch_size: int = 128,
         checkpoint_dir: str | None = None,
-        save_every: int = 1_000,
+        checkpoint_every: int = 10,
+        eval_every: int = 50,
         resume: bool = True,
         metrics_tracker: MetricsTracker | None = None,
 ) -> None:
@@ -109,7 +110,8 @@ def train_conditioned_denoiser(
     :param lr: Learning rate
     :param batch_size: Batch size
     :param checkpoint_dir: Directory to save checkpoints (None = no saving)
-    :param save_every: Save checkpoint every N epochs
+    :param checkpoint_every: Save checkpoint every N epochs
+    :param eval_every: Evaluate the model performance every N epochs
     :param resume: If True, automatically resume from the latest checkpoint if available
     :param metrics_tracker: Optional MetricsTracker to evaluate and record metrics at each
                             checkpoint interval. When provided, FID and sample grids are
@@ -156,12 +158,13 @@ def train_conditioned_denoiser(
         print(f"  loss: {epoch_loss:.6f}")
 
         # Save checkpoint and evaluate metrics at the configured interval
-        if checkpoint_path is not None and (epoch + 1) % save_every == 0:
+        if checkpoint_path is not None and (epoch + 1) % checkpoint_every == 0:
             best_loss = save_epoch_checkpoint(
                 checkpoint_path, epoch, model, optimizer, epoch_loss, noise_schedule, best_loss
             )
-            if metrics_tracker is not None:
-                metrics_tracker.evaluate(model, epoch + 1, epoch_loss)
+
+        if metrics_tracker is not None and (epoch + 1) % eval_every == 0:
+            metrics_tracker.evaluate(model, epoch + 1, epoch_loss)
 
 
 def load_checkpoint(

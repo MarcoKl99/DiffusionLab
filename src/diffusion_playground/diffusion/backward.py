@@ -145,8 +145,8 @@ def generate_samples_conditioned(
             # Update xt
             xt = x_prev
 
-            # Print progress every 100 steps
-            if t % 100 == 0:
+            # Print progress every 10 steps
+            if t % 10 == 0:
                 print(f"Step {noise_schedule.time_steps - t + 1}/{noise_schedule.time_steps} (t={t})")
 
     images = []
