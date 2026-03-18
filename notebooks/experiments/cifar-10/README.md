@@ -277,6 +277,24 @@ Besides the additional layers at each sampling stage, this model also implements
 and a residual projection from the input to the final output layer within each Down- and
 Up-Block.
 
+### Addition
+
+During training, we could see an exploding gradient, causing the loss to suddenly increase
+from about 0.3 in one epoch to 521934630431864.500000 in the next epoch... that's definetly
+not as it should be 😅.
+
+To counter that, a gradient clipping was added to prevent a single large gradient
+from causing this explosion in further gradients throughout the network.
+
+```python
+torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+```
+
+An initial value of `max_norm = 1.0` was tried out in the first experiment.
+
+Besides that, the Learning Rate was reduced from `1e-3` to `2e-4` in combination
+with an `AdamW` Optimizer with Weight Decay.
+
 ### Results
 
 ...

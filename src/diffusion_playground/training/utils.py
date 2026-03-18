@@ -22,7 +22,7 @@ def setup_training(
     :return: (optimizer, device, data_on_cpu)
     """
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")

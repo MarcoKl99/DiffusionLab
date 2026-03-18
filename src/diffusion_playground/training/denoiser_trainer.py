@@ -21,6 +21,7 @@ def train_denoiser(
         checkpoint_dir: str | None = None,
         save_every: int = 10,
         resume: bool = True,
+        grad_clip_norm: float = 1.0,
 ) -> None:
     """
     Train a model on the given data.
@@ -36,6 +37,7 @@ def train_denoiser(
     :param checkpoint_dir: Directory to save checkpoints (None = no saving)
     :param save_every: Save checkpoint every N epochs
     :param resume: If True, automatically resume from the latest checkpoint if available
+    :param grad_clip_norm: Max norm for gradient clipping (default: 1.0)
     """
     optimizer, device, data = setup_training(model, data, noise_schedule, lr)
     start_epoch, best_loss, checkpoint_path = setup_checkpoint_resume(
@@ -68,6 +70,13 @@ def train_denoiser(
             # Step
             optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=grad_clip_norm)
+
+            # Skip update if loss is NaN or Inf to avoid corrupting model weights
+            if not torch.isfinite(loss):
+                print(f"  WARNING: non-finite loss ({loss.item():.2f}), skipping batch")
+                continue
+
             optimizer.step()
 
             epoch_loss += loss.item()
@@ -96,6 +105,7 @@ def train_conditioned_denoiser(
         eval_every: int = 50,
         resume: bool = True,
         metrics_tracker: MetricsTracker | None = None,
+        grad_clip_norm: float = 1.0,
 ) -> None:
     """
     Train a class-conditioned model on the given data.
@@ -116,6 +126,7 @@ def train_conditioned_denoiser(
     :param metrics_tracker: Optional MetricsTracker to evaluate and record metrics at each
                             checkpoint interval. When provided, FID and sample grids are
                             saved alongside the model checkpoints.
+    :param grad_clip_norm: Max norm for gradient clipping (default: 1.0)
     """
     optimizer, device, data = setup_training(model, data, noise_schedule, lr)
     start_epoch, best_loss, checkpoint_path = setup_checkpoint_resume(
@@ -149,6 +160,13 @@ def train_conditioned_denoiser(
             # Step
             optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=grad_clip_norm)
+
+            # Skip update if loss is NaN or Inf to avoid corrupting model weights
+            if not torch.isfinite(loss):
+                print(f"  WARNING: non-finite loss ({loss.item():.2f}), skipping batch")
+                continue
+
             optimizer.step()
 
             epoch_loss += loss.item()
