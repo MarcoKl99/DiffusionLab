@@ -8,7 +8,7 @@ from ..diffusion.noise_schedule import LinearNoiseSchedule
 from ..models.time_conditioned_model import TimeConditionedModel
 from ..models.time_and_class_conditioned_model import TimeAndClassConditionedModel
 from ..evaluation.metrics_tracker import MetricsTracker
-from .utils import setup_training, setup_checkpoint_resume, save_epoch_checkpoint
+from .utils import EMA, setup_training, setup_checkpoint_resume, setup_ema, save_epoch_checkpoint
 
 
 def train_denoiser(
@@ -106,6 +106,7 @@ def train_conditioned_denoiser(
         resume: bool = True,
         metrics_tracker: MetricsTracker | None = None,
         grad_clip_norm: float = 1.0,
+        ema_decay: float = 0.9999,
 ) -> None:
     """
     Train a class-conditioned model on the given data.
@@ -127,11 +128,14 @@ def train_conditioned_denoiser(
                             checkpoint interval. When provided, FID and sample grids are
                             saved alongside the model checkpoints.
     :param grad_clip_norm: Max norm for gradient clipping (default: 1.0)
+    :param ema_decay: EMA decay factor for shadow weights used during evaluation (default: 0.9999,
+                      as used in the DDPM paper). Set to 0.0 to disable EMA.
     """
     optimizer, device, data = setup_training(model, data, noise_schedule, lr)
     start_epoch, best_loss, checkpoint_path = setup_checkpoint_resume(
         checkpoint_dir, resume, model, optimizer, device
     )
+    ema = setup_ema(model, decay=ema_decay, checkpoint_path=checkpoint_path, device=device)
 
     for epoch in range(start_epoch, epochs):
         print(f"Epoch {epoch + 1} / {epochs}...")
@@ -168,6 +172,7 @@ def train_conditioned_denoiser(
                 continue
 
             optimizer.step()
+            ema.update(model)
 
             epoch_loss += loss.item()
             num_batches += 1
@@ -178,11 +183,15 @@ def train_conditioned_denoiser(
         # Save checkpoint and evaluate metrics at the configured interval
         if checkpoint_path is not None and (epoch + 1) % checkpoint_every == 0:
             best_loss = save_epoch_checkpoint(
-                checkpoint_path, epoch, model, optimizer, epoch_loss, noise_schedule, best_loss
+                checkpoint_path, epoch, model, optimizer, epoch_loss, noise_schedule, best_loss,
+                ema=ema,
             )
 
         if metrics_tracker is not None and (epoch + 1) % eval_every == 0:
+            # Evaluate using EMA shadow weights — this is what the DDPM paper reports FID for
+            original_weights = ema.apply_shadow(model)
             metrics_tracker.evaluate(model, epoch + 1, epoch_loss)
+            ema.restore(model, original_weights)
 
 
 def load_checkpoint(
