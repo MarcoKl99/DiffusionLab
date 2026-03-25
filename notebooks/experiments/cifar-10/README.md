@@ -340,6 +340,72 @@ The training of the smaller CNNDenoiser15 model with a total of
 15 Conv Blocks and 172M parameters led to the following FID- and
 (Training-)Loss-Curves.
 
+Note: Due to vRAM restrictions, the number of samples used for
+calculating the FID score was reduced from 2048 to 1500.
+
+The curves for the Training-Loss and the FID score every 50 epochs can be
+seen below.
+
+<img src="./evaluation/CNNDenoiser15/ema/curves.png">
+
+Note, that a pattern can be seen across all experiments that we conducted so far!
+It seems like even though the Training-Loss decreases steadily, the FID score
+starts to level off pretty quickly! Why is that? 🧐
+
+The results of the model using EMA shadow-weights for denoising can be seen below.
+
+<img src="./evaluation/CNNDenoiser15/ema/samples_epoch_200.png">
+
+The results look better than without EMA evaluation, which can also be seen
+if we compare the best FID values of the same model CNNDenoiser15 with and
+without this addition.
+
+| Version | Minimum FID |
+|---------|-------------|
+| No-EMA  | 36.75       |
+| EMA     | 29.54       |
+
+Still, many samples lack important features or, again especially at the examples
+of the classes `cat` and `dog` that the image is still warped / unclear.
+
+**Small Addition:**
+
+After 500 epochs, the EMA version of the CNNDenoiser15 actually created a person
+riding a horse!
+
+<img src="./evaluation/CNNDenoiser15/ema/generated_person_riding_a_horse.png">
+
+...I was happy about that, so I just wanted to point that out 🥳.
+
+## CNNDenoiser15 - CosineNoiseSchedule
+
+So the model is not performing to its greatest... How do we tackle this? 🧐
+
+For this next experiment, a cosine-based noise schedule is implemented,
+as proposed in the paper `Improved Denoising Diffusion Probabilistic Models`.
+
+The implementation can be found [here](../../../src/diffusion_playground/diffusion/noise_schedule.py).
+
+When applying both the linear and the cosine noise schedule besides each other
+we can see, that the noise is less aggressive, preserving the information in
+the image a little bit longer.
+
+<img src="../../../docs/noise-schedules/noise_schedule_strips.png">
+
+This is also shown by the curves, visualizing $ \bar{\alpha}_t $,
+$ \beta_t $, as well as $ SNR(t) $ which is the Signal-to-Noise ratio at
+the time step $ t $.
+Here, especially the middle part is interesting, as the signal is preserved
+longer with the cosine schedule. This should enable the model to learn
+the structure better, not only seeing pure noise after being about $ 66\% $
+through the schedule.
+
+<img src="../../../docs/noise-schedules/noise_schedule_curves.png">
+
+### Results of CNNDenoiser15 + EMA + Cosine-Schedule
+
+During training, the following results were collected.
+
 ...
 
 # Not yet trained
