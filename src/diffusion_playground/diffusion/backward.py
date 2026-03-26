@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from tqdm import tqdm
 
 from .noise_schedule import LinearNoiseSchedule
 
@@ -10,6 +11,7 @@ def generate_samples(
         image_shape: tuple[int, int, int],
         num_samples: int,
         device: torch.device | str,
+        show_progress: bool = False,
 ) -> list[torch.Tensor]:
     """
     Generate samples by performing reverse diffusion (denoising) from pure noise.
@@ -37,8 +39,9 @@ def generate_samples(
     xt = torch.randn(num_samples, *image_shape, device=device)
 
     # Reverse diffusion loop (stochastic sampling)
+    timesteps = list(reversed(range(1, noise_schedule.time_steps + 1)))
     with torch.no_grad():
-        for t in reversed(range(1, noise_schedule.time_steps + 1)):
+        for t in tqdm(timesteps, desc="Sampling", disable=not show_progress):
             # Create time tensor for all samples
             t_tensor = torch.full((num_samples,), t, device=device, dtype=torch.long)
 
@@ -68,10 +71,6 @@ def generate_samples(
             # Update xt
             xt = x_prev
 
-            # Print progress every 100 steps
-            if t % 100 == 0:
-                print(f"Step {noise_schedule.time_steps - t + 1}/{noise_schedule.time_steps} (t={t})")
-
     images = []
     for x in xt:
         sample = (torch.permute(x, (1, 2, 0)) + 1) / 2
@@ -87,6 +86,7 @@ def generate_samples_conditioned(
         image_shape: tuple[int, int, int],
         class_labels: torch.Tensor,
         device: torch.device | str,
+        show_progress: bool = False,
 ) -> list[torch.Tensor]:
     """
     Generate samples by performing reverse diffusion (denoising) from pure noise.
@@ -116,8 +116,9 @@ def generate_samples_conditioned(
     xt = torch.randn(num_samples, *image_shape, device=device)
 
     # Reverse diffusion loop (stochastic sampling)
+    timesteps = list(reversed(range(1, noise_schedule.time_steps + 1)))
     with torch.no_grad():
-        for t in reversed(range(1, noise_schedule.time_steps + 1)):
+        for t in tqdm(timesteps, desc="Sampling", disable=not show_progress):
             # Create time tensor for all samples
             t_tensor = torch.full((num_samples,), t, device=device, dtype=torch.long)
 
@@ -144,10 +145,6 @@ def generate_samples_conditioned(
 
             # Update xt
             xt = x_prev
-
-            # Print progress every 10 steps
-            if t % 10 == 0:
-                print(f"Step {noise_schedule.time_steps - t + 1}/{noise_schedule.time_steps} (t={t})")
 
     images = []
     for x in xt:

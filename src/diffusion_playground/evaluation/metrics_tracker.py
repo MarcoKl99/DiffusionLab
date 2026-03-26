@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 from pathlib import Path
+from tqdm import tqdm
 
 from torchmetrics.image.fid import FrechetInceptionDistance
 
@@ -171,6 +172,7 @@ class MetricsTracker:
             image_shape=self.image_shape,
             class_labels=torch.tensor(all_labels),
             device=self.device,
+            show_progress=True,
         )
 
         n_rows = len(self.eval_classes)
@@ -205,12 +207,15 @@ class MetricsTracker:
 
         return epoch_results_path
 
-    def _compute_fid(self, model: nn.Module) -> float:
+    def _compute_fid(self, model: nn.Module, fid_batch_size: int = 64) -> float:
         """
         Compute FID between a random subset of real training images and generated images.
 
         Real images are converted from [-1, 1] to [0, 1] before InceptionV3 feature extraction.
         Generated images from `generate_samples_conditioned` are already in [0, 1].
+
+        Both real and fake images are fed to the FID metric in mini-batches of `fid_batch_size`
+        to avoid OOM errors when `num_fid_samples` is large.
         """
 
         fid = FrechetInceptionDistance(feature=2048, normalize=True).to(self.device)
@@ -222,23 +227,31 @@ class MetricsTracker:
             pool = self._real_per_class[cls]
             idx = torch.randperm(len(pool))[:samples_per_class]
             real_chunks.append(pool[idx])
-        real_batch = torch.cat(real_chunks, dim=0).to(self.device)
-        real_batch = ((real_batch + 1) / 2).clamp(0, 1)
-        fid.update(real_batch, real=True)
+        real_all = torch.cat(real_chunks, dim=0)
+        real_all = ((real_all + 1) / 2).clamp(0, 1)
 
-        # Generated images: same samples_per_class per eval class
+        real_batches = range(0, len(real_all), fid_batch_size)
+        for i in tqdm(real_batches, desc="FID real images"):
+            batch = real_all[i: i + fid_batch_size].to(self.device)
+            fid.update(batch, real=True)
+            del batch
+
+        # Generated images: generate and update FID one batch at a time
         all_labels = [cls for cls in self.eval_classes for _ in range(samples_per_class)]
-        images = generate_samples_conditioned(
-            model=model,
-            noise_schedule=self.noise_schedule,
-            image_shape=self.image_shape,
-            class_labels=torch.tensor(all_labels),
-            device=self.device,
-        )
-
-        # Stack list of (H, W, C) → (N, C, H, W)
-        fake_batch = torch.stack([img.permute(2, 0, 1) for img in images]).to(self.device)
-        fid.update(fake_batch, real=False)
+        fake_batches = range(0, len(all_labels), fid_batch_size)
+        for i in tqdm(fake_batches, desc="FID generated images"):
+            label_batch = torch.tensor(all_labels[i: i + fid_batch_size])
+            images = generate_samples_conditioned(
+                model=model,
+                noise_schedule=self.noise_schedule,
+                image_shape=self.image_shape,
+                class_labels=label_batch,
+                device=self.device,
+                show_progress=False,
+            )
+            fake_batch = torch.stack([img.permute(2, 0, 1) for img in images]).to(self.device)
+            fid.update(fake_batch, real=False)
+            del fake_batch, images
 
         return fid.compute().item()
 
