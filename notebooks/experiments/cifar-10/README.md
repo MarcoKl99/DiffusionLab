@@ -406,6 +406,24 @@ through the schedule.
 
 During training, the following results were collected.
 
+<img src="./evaluation/CNNDenoiser15/ema-cosine/curves.png">
+
+We see, that the minimum FID score is way better compared to the previous results,
+with a minimum value of 13.09!
+
+Still we see again, that the FID levels off after only a few hundred epochs.
+
+When looking at the resulting generated images (again for the same classes
+automobile, cat, dog, horse) we can observe a significantly better quality
+for the class *cat*.
+
+<img src="./evaluation/CNNDenoiser15/ema-cosine/samples_epoch_200.png">
+
+To further try to push down the FID score and achieve better generation results,
+the larger `CNNDenoiser21` was trained, using the `CosineNoiseSchedule`.
+
+## CNNDenoiser21 - CosineNoiseSchedule
+
 ...
 
 # Not yet trained
