@@ -5,6 +5,7 @@ create_samples.py
 .idea
 local_data
 data
+model-backups
 checkpoints
 src.zip
 .DS_Store
@@ -13,6 +14,7 @@ src.zip
 playground.py
 plot_metrics.py
 visualize_noise_schedules.py
+*.xcf
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

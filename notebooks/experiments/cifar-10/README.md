@@ -4,6 +4,12 @@ This file gives an overview about the results and evolution of architecture and 
 for handling the CIFAR-10 dataset in the task of image generation using U-Net style diffusion
 models.
 
+## Spoiler
+
+The final architecture achieved am FID score of 8.64 and generated the samples seen below.
+
+<img src="evaluation/CNNDenoiser21/ema-cosine/best-samples/best-samples-grid.jpeg">
+
 ## General Architecture
 
 To make it easy to switch out backbone models while keeping time and class conditioning,
@@ -377,7 +383,7 @@ riding a horse!
 
 ...I was happy about that, so I just wanted to point that out 🥳.
 
-## CNNDenoiser15 - CosineNoiseSchedule
+## CNNDenoiser15 - EMA + CosineNoiseSchedule
 
 So the model is not performing to its greatest... How do we tackle this? 🧐
 
@@ -402,7 +408,7 @@ through the schedule.
 
 <img src="../../../docs/noise-schedules/noise_schedule_curves.png">
 
-### Results of CNNDenoiser15 + EMA + Cosine-Schedule
+### Results of CNNDenoiser15 with EMA + Cosine-Schedule
 
 During training, the following results were collected.
 
@@ -422,9 +428,39 @@ for the class *cat*.
 To further try to push down the FID score and achieve better generation results,
 the larger `CNNDenoiser21` was trained, using the `CosineNoiseSchedule`.
 
-## CNNDenoiser21 - CosineNoiseSchedule
+## CNNDenoiser21 - EMA + CosineNoiseSchedule
 
-...
+As the simplest experiment, let's plug in a deeper backbone model and train again! For this,
+the `CNNDenoiser21` was used with the exact same training-setup as above.
+
+The resulting Training-Loss and FID curve can be seen below.
+
+<img src="evaluation/CNNDenoiser21/ema-cosine/curves.png">
+
+We clearly see, that the more complex backbone leads to a lower FID score of 8.64
+(a short moment of appreciation that this is the first single-digit FID 🎉)!
+
+The generated samples after 300 epochs can be seen in the following.
+
+<img src="evaluation/CNNDenoiser21/ema-cosine/samples_epoch_300.png">
+
+The samples show, that the recent adaptions to the training process led to a better
+understanding of especially those classes, that were barely recognizable before. For example,
+at least 2 out of the 4 images for the class `dog` now look a lot better than before.
+
+Still we see, that the images are not perfect by any means. The experiments did show though,
+that the implemented adaptions of
+
+- EMA shadow weights for the sampling process
+- CosineNoiseSchedule
+- Larger backbone models
+
+To finish this small sneak-peak into Diffusion Models, let`s cherry-pick some generated samples
+for each class. The best results can be seen below.
+
+<img src="evaluation/CNNDenoiser21/ema-cosine/best-samples/best-samples-grid.jpeg">
+
+----------------------
 
 # Not yet trained
 
