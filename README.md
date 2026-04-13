@@ -16,7 +16,6 @@ All experiments can be replicated using the given notebooks under `notebooks/exp
 - [Results](#results)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Examples](#examples)
 - [License](#license)
 
 ## Results 🏆
