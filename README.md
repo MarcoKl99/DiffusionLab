@@ -6,51 +6,50 @@ An implementation of a generic model structure for **Denoising Diffusion Probabi
 variable conditioning.
 
 This project provides the basic structure of a diffusion process for both training and inference, using a generic
-diffusion-wrapper. We can inject a U-Net backbone into the wrapper to power the process and provide variable
-conditioning (e.g. time + class label) to steer the generation process. The implementation also shows a few examples
-on how the structure can be utilized, explaining experiments on various datasets with different models
-provided in the package.
+diffusion-wrapper. We inject an arbitrary U-Net backbone to power the process, providing a variable
+conditioning (e.g. time + class label) by the wrapper.
 
 All experiments can be replicated using the given notebooks under `notebooks/experiments`.
 
-## 🎯 Project Highlights
-
-- **Generic Training Pipeline**: One unified training function works across toy datasets (2D Moons), grayscale images (
-  MNIST), and color images (CIFAR-10) with various backbone models, as long as the generic interface
-  `src/diffusion_playground/models/backbones/base_backbone.py` is implemented
-- **Multiple Architectures**: From simple MLPs to U-Net-style CNNs with time- and label-embeddings
-
-## 🔬 What's inside
-
-The `diffusion_playground` package provides complete functionality for:
-
-- **Model Architecture**: Generic interface together with sample implementations (based on the U-Net architecture)
-- **Reverse Diffusion**: Train models to denoise and generate new samples
-- **Training Infrastructure**: Checkpointing, resumption, and progress tracking
-
-Together with the implementations, the `README` files show some basic mathematical ideas
-of the diffusion process.
-
 ## Contents 📖
 
+- [Results](#results)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Examples](#examples)
 - [License](#license)
 
+## Results 🏆
+
+### CIFAR-10
+
+On the CIFAT-10 dataset various time and class conditioned models were implemented, showing increasing performance
+by adapting the model architecture, noise schedule, training time, and the inference process.
+
+**Learnings:**
+
+- Small models (< 50M) start to learn basic structures for easy classes
+- Larger models (~100M) achieve already better results with the same training configuration
+- EMA Shadow Weights for inference leads to string improvements of the FID
+- CosineNoiseSchedule outperformed LinearNoiseSchedule significantly
+- On CIFAR-10 even smaller models (~250M) generate usable results with a few days of training (A100 GPU)
+
+**Generated Samples:**
+
+Generated with the [CNNDenoiser21](src/diffusion_playground/models/backbones/cnn_denoiser_21.py).
+
+<img src="notebooks/experiments/cifar-10/evaluation/CNNDenoiser21/ema-cosine/best-samples/best-samples-grid.jpeg">
+
+---
+
 ## Installation 🚀
 
-To install the project, follow the steps outlines below. Note that this is a basic Python
-setup and can therefore easily be extended to further package managers etc.
-
-1. Clone the repository
-2. Create a virtual environment for Python
+To install the project, simply follow the standard Python process, clone, create venv, install
+dependencies, let's go! 😉
 
 ```bash
 python3 -m venv .venv
 ```
-
-3. Install the required packages
 
 ```bash
 pip install -r requirements.txt
@@ -68,17 +67,28 @@ important parts of which can be seen below.
 
 ```
 diffusion_playground/
-├── diffusion/                                # Core diffusion algorithms
-│   ├── noise_schedule.py                     # Linear noise scheduling (β, α, ᾱ)
-│   ├── training_utils.py                     # Forward diffusion (add noise)
-│   └── backward.py                           # Reverse diffusion (generate samples)
-├── models/                                   # Neural network architectures
-│   ├── backbones                             # Base-models that power the diffusion process
-│   ├── cond_embedding.py                     # Different ways for conditional embedding classes
-│   ├── time_and_class_conditioned_model.py   # Wrapper for models steerable by the class label
-│   └── time_conditioned_model.py             # Wrapper for models without class label input during generation
+├── data_loader/                              # What does it do... It loads data 😮
+│   ├── cifar_10_dataset.py
+│   ├── imagenet.py
+│   └── toy_dataset.py
+├── diffusion/                                # Backward and forward diffusion process
+│   ├── backward.py
+│   ├── forward.py
+│   ├── noise_schedule.py
+│   └── training_utils.py
+├── evaluation/                               # Generate samples for inspection and track metrics
+│   ├── eval_cifar_10.py
+│   ├── image_generation_results.py
+│   ├── metrics_tracker.py
+│   └── time_conditioned_model.py
+├── models/                                   # Neural Network wrapper and backbones
+│   ├── backbones/                            # Base-models that power the diffusion process
+│   ├── cond_embedding.py
+│   ├── time_and_class_conditioned_model.py
+│   └── time_conditioned_model.py
 └── training/                                 # Training infrastructure
-    └── denoiser_trainer.py                   # Generic training loop with checkpointing
+    ├── denoiser_trainer.py
+    └── utils.py
 ```
 
 ### Quick Start
@@ -90,60 +100,7 @@ To not constantly change this README, no code-snippets are provided here... thes
 change about as quickly as the most popular disruptive agentic AI tools for
 increasing shareholder value 😉.
 
-### Key Features
-
-- **Automatic Checkpointing**: Models are saved at regular intervals with epoch and loss tracking
-- **Seamless Resume**: Training automatically resumes from the latest checkpoint
-- **Generic Interface**: Same training function works for any dataset/architecture combination
-- **Flexible Sampling**: Easy sampling of generated data using the provided functions
-
-## Examples 📺
-
-This project includes three progressive experiments that demonstrate the versatility and power of our diffusion model
-implementation:
-
-### CIFAR-10 Object Generation 🎨
-
-**Goal**: Scale to complex color images with multiple object categories, while conditioning the generation process on
-the class labels. This enables us to specifically generate e.g. a horse, a car, etc. by providing the corresponding
-label as an input.
-
-- **Architecture**: U-Net CNN versions (3M and 53M parameters), Sinusoidal time embedding + class label embedding
-- **Dataset**: 50,000 color images (32×32 RGB) across 10 object classes
-- **Training**: 100,000 epochs
-- **Results**: Learns object shapes and structures, starts to be recognizable after 100,000 epochs
-
-**Examples:**
-
-...
-
-**Key Observations**:
-
-- ✅ Shape learning is evident
-- ✅ Color distributions match object categories (blue for water/ships, browns for animals)
-- ✅ Spatial coherence (objects have proper structure and backgrounds)
-- ⚠️ Textures are abstract - not realistic yet (requires larger models/more training)
-
-**Documentation**: [CIFAR-10 Experiment README](notebooks/experiments/cifar-10/README.md)
-
-### Running the Experiments
-
-Each experiment is contained in a Jupyter notebook:
-
-```bash
-# Activate your environment
-source .venv/bin/activate
-
-# Launch Jupyter
-jupyter notebook
-
-# Navigate to:
-# - notebooks/experiments/moons/moons_diffusion.ipynb
-# - notebooks/experiments/mnist/mnist_diffusion.ipynb
-# - notebooks/experiments/cifar-10/cifar10_diffusion.ipynb
-```
-
-Each notebook includes:
+The notebooks include:
 
 - Dataset loading (and exploration in relevant cases)
 - Model architecture setup
