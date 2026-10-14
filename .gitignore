@@ -15,6 +15,7 @@ playground.py
 plot_metrics.py
 visualize_noise_schedules.py
 *.xcf
+project-documentation.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
